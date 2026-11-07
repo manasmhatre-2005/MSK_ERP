@@ -38,6 +38,8 @@ const CreditNotePrintView = lazy(() => import('./components/credit-note/CreditNo
 const HtBillForm = lazy(() => import('./components/ht-bill/HtBillForm').then((m) => ({ default: m.HtBillForm })));
 const HtBillPrintView = lazy(() => import('./components/ht-bill/HtBillPrintView').then((m) => ({ default: m.HtBillPrintView })));
 const EmptyContainerForm = lazy(() => import('./components/empty-container/EmptyContainerForm').then((m) => ({ default: m.EmptyContainerForm })));
+const ForwardingBillForm = lazy(() => import('./components/forwarding-bill/ForwardingBillForm').then((m) => ({ default: m.ForwardingBillForm })));
+const ForwardingBillPrintView = lazy(() => import('./components/forwarding-bill/ForwardingBillPrintView').then((m) => ({ default: m.ForwardingBillPrintView })));
 const EmptyContainerPrintView = lazy(() => import('./components/empty-container/EmptyContainerPrintView').then((m) => ({ default: m.EmptyContainerPrintView })));
 const LogiBillAssistantChatbot = lazy(() => import('./components/chat/LogiBillAssistantChatbot').then((m) => ({ default: m.LogiBillAssistantChatbot })));
 
@@ -88,6 +90,7 @@ const MainApp: React.FC = () => {
   const [printableCreditNote, setPrintableCreditNote] = useState<Invoice | null>(null);
   const [printableHtInvoice, setPrintableHtInvoice] = useState<Invoice | null>(null);
   const [printableEmptyContainer, setPrintableEmptyContainer] = useState<Invoice | null>(null);
+  const [printableForwardingInvoice, setPrintableForwardingInvoice] = useState<Invoice | null>(null);
   const [logoutNotice, setLogoutNotice] = useState<string | null>(null);
 
   // Modals & Navigation
@@ -99,6 +102,7 @@ const MainApp: React.FC = () => {
   const [isCreditNoteFormOpen, setIsCreditNoteFormOpen] = useState(false);
   const [isHtBillFormOpen, setIsHtBillFormOpen] = useState(false);
   const [isEmptyContainerFormOpen, setIsEmptyContainerFormOpen] = useState(false);
+  const [isForwardingBillFormOpen, setIsForwardingBillFormOpen] = useState(false);
   const [prefilledPartyForWizard, setPrefilledPartyForWizard] = useState<Partial<Party> | null>(null);
 
   // Sync state with browser location & popstate for seamless Back/Forward button support
@@ -170,6 +174,7 @@ const MainApp: React.FC = () => {
       setPrintableCreditNote(null);
       setPrintableHtInvoice(null);
       setPrintableEmptyContainer(null);
+      setPrintableForwardingInvoice(null);
       setIsSearchModalOpen(false);
       setIsBillTypeModalOpen(false);
       setSelectedBillType(null);
@@ -177,6 +182,7 @@ const MainApp: React.FC = () => {
       setIsCreditNoteFormOpen(false);
       setIsHtBillFormOpen(false);
       setIsEmptyContainerFormOpen(false);
+      setIsForwardingBillFormOpen(false);
       setPrefilledPartyForWizard(null);
       setLogoutNotice('Signed out successfully.');
       navigate('/login');
@@ -612,6 +618,22 @@ const MainApp: React.FC = () => {
         />
       )}
 
+      {/* Dedicated Forwarding Bill Creation Form (Excel Container Format) */}
+      {isForwardingBillFormOpen && (
+        <ForwardingBillForm
+          isOpen={isForwardingBillFormOpen}
+          onClose={() => setIsForwardingBillFormOpen(false)}
+          initialParty={prefilledPartyForWizard}
+          onSuccess={(savedFwd) => {
+            setIsForwardingBillFormOpen(false);
+            setInvoiceRefreshCounter((c) => c + 1);
+            setPrintableForwardingInvoice(savedFwd);
+            setSelectedInvoiceId(savedFwd.id);
+            setCurrentTab('invoices');
+          }}
+        />
+      )}
+
       {/* Dedicated Empty Container Bill Creation Form */}
       {isEmptyContainerFormOpen && (
         <EmptyContainerForm
@@ -647,6 +669,13 @@ const MainApp: React.FC = () => {
           invoice={printableHtInvoice}
           isOpen={true}
           onClose={() => setPrintableHtInvoice(null)}
+        />
+      )}
+      {printableForwardingInvoice && (
+        <ForwardingBillPrintView
+          invoice={printableForwardingInvoice}
+          isOpen={true}
+          onClose={() => setPrintableForwardingInvoice(null)}
         />
       )}
       {printableEmptyContainer && (

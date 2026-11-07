@@ -8,6 +8,7 @@ import { EmailSendModal } from '../email/EmailSendModal';
 import { CreditNotePrintView } from '../credit-note/CreditNotePrintView';
 import { HtBillPrintView } from '../ht-bill/HtBillPrintView';
 import { EmptyContainerPrintView } from '../empty-container/EmptyContainerPrintView';
+import { ForwardingBillPrintView } from '../forwarding-bill/ForwardingBillPrintView';
 import { InvoiceWatermark } from '../common/InvoiceWatermark';
 
 interface InvoicePrintViewProps {
@@ -51,6 +52,9 @@ export const InvoicePrintView: React.FC<InvoicePrintViewProps> = ({
   }
   if (invoice.billType === 'CREDIT_NOTE') {
     return <CreditNotePrintView invoice={invoice} isOpen={true} onClose={onClose} displayMode={displayMode} />;
+  }
+  if (invoice.billType === 'FORWARDING') {
+    return <ForwardingBillPrintView invoice={invoice} isOpen={true} onClose={onClose} companySettings={settings} displayMode={displayMode} />;
   }
 
   const formatDate = (dateVal: string | Date | undefined | null) => {

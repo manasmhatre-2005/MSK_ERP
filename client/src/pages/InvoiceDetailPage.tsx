@@ -21,6 +21,7 @@ import { EmailSendModal } from '../components/email/EmailSendModal';
 import { EmptyContainerPrintView } from '../components/empty-container/EmptyContainerPrintView';
 import { HtBillPrintView } from '../components/ht-bill/HtBillPrintView';
 import { CreditNotePrintView } from '../components/credit-note/CreditNotePrintView';
+import { ForwardingBillPrintView } from '../components/forwarding-bill/ForwardingBillPrintView';
 import { getCurrencySymbol, formatCurrency } from '../utils/currency';
 
 interface InvoiceDetailPageProps {
@@ -278,6 +279,14 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
         />
       ) : invoice.billType === 'CREDIT_NOTE' ? (
         <CreditNotePrintView
+          invoice={invoice}
+          isOpen={true}
+          onClose={() => {}}
+          companySettings={settings}
+          displayMode="inline"
+        />
+      ) : invoice.billType === 'FORWARDING' ? (
+        <ForwardingBillPrintView
           invoice={invoice}
           isOpen={true}
           onClose={() => {}}

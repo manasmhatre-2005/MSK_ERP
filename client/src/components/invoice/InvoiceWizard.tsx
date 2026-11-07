@@ -27,6 +27,7 @@ import { Badge } from '../common/Badge';
 import { DateCalculationBox } from '../common/DateCalculationBox';
 import { getCurrencySymbol, formatCurrency } from '../../utils/currency';
 import { EmailSendModal } from '../email/EmailSendModal';
+import { ForwardingBillForm } from '../forwarding-bill/ForwardingBillForm';
 
 interface InvoiceWizardProps {
   initialParty?: Partial<Party> | null;
@@ -358,6 +359,17 @@ export const InvoiceWizard: React.FC<InvoiceWizardProps> = ({
       setLoading(false);
     }
   };
+
+  if (billType === 'FORWARDING') {
+    return (
+      <ForwardingBillForm
+        isOpen={true}
+        onClose={onCancel}
+        onSuccess={onSuccess}
+        initialParty={initialParty || selectedParty}
+      />
+    );
+  }
 
   const steps = [
     { num: 1, label: 'Party', icon: Users },
