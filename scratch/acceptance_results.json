@@ -1,0 +1,284 @@
+[
+  {
+    "suite": "System",
+    "testName": "Backend Server Startup",
+    "status": "PASS",
+    "details": "Listening on http://127.0.0.1:5005"
+  },
+  {
+    "suite": "System",
+    "testName": "Health Check API (/api/health)",
+    "status": "PASS",
+    "details": "App: MSK Logistic Solution ERP, DB: CONFIGURED"
+  },
+  {
+    "suite": "Authentication",
+    "testName": "Admin Login (admin@login)",
+    "status": "PASS",
+    "details": "JWT token issued, Role: ADMIN"
+  },
+  {
+    "suite": "Authentication",
+    "testName": "Account Manager Login (account@login)",
+    "status": "PASS",
+    "details": "JWT token issued, Role: ACCOUNT_MANAGER"
+  },
+  {
+    "suite": "Authentication",
+    "testName": "Data Entry Operator Login (operator@login)",
+    "status": "PASS",
+    "details": "JWT token issued, Role: DATA_ENTRY"
+  },
+  {
+    "suite": "Authentication",
+    "testName": "Incorrect Password Handling",
+    "status": "PASS",
+    "details": "Rejected with 401: \"Invalid email or password.\""
+  },
+  {
+    "suite": "Authentication",
+    "testName": "Unauthenticated Access Rejection",
+    "status": "PASS",
+    "details": "Direct URL request without JWT denied 401"
+  },
+  {
+    "suite": "Authentication",
+    "testName": "Invalid JWT Handling",
+    "status": "PASS",
+    "details": "Malformed token rejected with 401"
+  },
+  {
+    "suite": "Authentication",
+    "testName": "Session Logout & Invalidation",
+    "status": "PASS",
+    "details": "Cookies expired and session revoked"
+  },
+  {
+    "suite": "Admin Workflow",
+    "testName": "Executive Dashboard KPI Analytics",
+    "status": "PASS",
+    "details": "Billing This Month: ₹3292436, Outstanding: ₹3946747.96, Total TEUs: 23"
+  },
+  {
+    "suite": "Admin Workflow",
+    "testName": "Parties Master Listing",
+    "status": "PASS",
+    "details": "Found 9 registered parties"
+  },
+  {
+    "suite": "Admin Workflow",
+    "testName": "Exporters Master Listing",
+    "status": "PASS",
+    "details": "Found 2 exporters"
+  },
+  {
+    "suite": "Admin Workflow",
+    "testName": "Jobs & Shipments Listing",
+    "status": "PASS",
+    "details": "Found 7 jobs"
+  },
+  {
+    "suite": "Admin Workflow",
+    "testName": "Containers Operations Tracking",
+    "status": "PASS",
+    "details": "Found 12 containers"
+  },
+  {
+    "suite": "Admin Workflow",
+    "testName": "Standard Charges Master",
+    "status": "PASS",
+    "details": "Found 11 standard charges"
+  },
+  {
+    "suite": "Admin Workflow",
+    "testName": "Invoice & Billing History Listing",
+    "status": "PASS",
+    "details": "Found 46 invoices"
+  },
+  {
+    "suite": "Admin Workflow",
+    "testName": "Payment Register & Reconciliation",
+    "status": "PASS",
+    "details": "Found 20 payment records"
+  },
+  {
+    "suite": "Admin Workflow",
+    "testName": "Party Billing Financial Report",
+    "status": "PASS",
+    "details": "Found 9 party billing lines"
+  },
+  {
+    "suite": "Admin Workflow",
+    "testName": "Company Profile & Bank Settings",
+    "status": "PASS",
+    "details": "Company: MSK LOGISTIC SOLUTION, GSTIN: 27AXWPK4562G1ZX"
+  },
+  {
+    "suite": "Admin Workflow",
+    "testName": "Immutable Security Audit Logs",
+    "status": "PASS",
+    "details": "Found 100 audit logs"
+  },
+  {
+    "suite": "Admin Workflow",
+    "testName": "User Management & Role Directory",
+    "status": "PASS",
+    "details": "Found 8 system users"
+  },
+  {
+    "suite": "Account Workflow",
+    "testName": "Accountant Invoice Management Access",
+    "status": "PASS",
+    "details": "Authorized 200 OK"
+  },
+  {
+    "suite": "Account Workflow",
+    "testName": "Accountant Outstanding Balances Ledger",
+    "status": "PASS",
+    "details": "Authorized 200 OK"
+  },
+  {
+    "suite": "Account Workflow",
+    "testName": "Accountant User Management Access Block",
+    "status": "PASS",
+    "details": "Strictly Denied 403 Forbidden"
+  },
+  {
+    "suite": "Account Workflow",
+    "testName": "Accountant Company Settings Edit Block",
+    "status": "PASS",
+    "details": "Strictly Denied 403 Forbidden"
+  },
+  {
+    "suite": "Account Workflow",
+    "testName": "Accountant Audit Logs View Block",
+    "status": "PASS",
+    "details": "Strictly Denied 403 Forbidden"
+  },
+  {
+    "suite": "Data Entry Workflow",
+    "testName": "Operator Shipping Lines Reference",
+    "status": "PASS",
+    "details": "Retrieved 16 shipping lines"
+  },
+  {
+    "suite": "Data Entry Workflow",
+    "testName": "Container Operation Creation (8 fields)",
+    "status": "PASS",
+    "details": "Ref: ENT-2026-0002"
+  },
+  {
+    "suite": "Data Entry Workflow",
+    "testName": "Operational Entry History Retrieval",
+    "status": "PASS",
+    "details": "Verified entry ENT-2026-0002 in history"
+  },
+  {
+    "suite": "Data Entry Workflow",
+    "testName": "Operational Entry Edit & Optimistic Lock",
+    "status": "PASS",
+    "details": "Seal updated to revised value"
+  },
+  {
+    "suite": "Data Entry Workflow",
+    "testName": "Operational Email Notification Dispatch",
+    "status": "PASS",
+    "details": "Simulated dispatch delivered"
+  },
+  {
+    "suite": "Data Entry Workflow",
+    "testName": "Operational Log CSV Export",
+    "status": "PASS",
+    "details": "CSV contains container headers and entry row"
+  },
+  {
+    "suite": "Data Entry Workflow",
+    "testName": "Test Operational Record Cleanup",
+    "status": "PASS",
+    "details": "Safely removed test operational record"
+  },
+  {
+    "suite": "Data Entry Security",
+    "testName": "Operator Strict Access Restriction (9 APIs)",
+    "status": "PASS",
+    "details": "All 9 financial & admin APIs returned 403 Forbidden"
+  },
+  {
+    "suite": "Billing Formats",
+    "testName": "Forwarding Tax Invoice PDF Generation",
+    "status": "PASS",
+    "details": "Rendered 1375139 bytes with official watermark"
+  },
+  {
+    "suite": "Billing Formats",
+    "testName": "Credit Note Bill PDF Generation",
+    "status": "PASS",
+    "details": "Rendered 1368160 bytes with original invoice reference"
+  },
+  {
+    "suite": "Billing Formats",
+    "testName": "Empty Container Bill PDF Generation",
+    "status": "PASS",
+    "details": "Rendered 811270 bytes with container rent details"
+  },
+  {
+    "suite": "Billing Formats",
+    "testName": "H & T Bill PDF Generation",
+    "status": "PASS",
+    "details": "Rendered 809196 bytes with handling & transport details"
+  },
+  {
+    "suite": "QR Subsystem",
+    "testName": "Direct Bill PDF Streaming Endpoint (/bills/:token)",
+    "status": "PASS",
+    "details": "Served PDF stream directly (application/pdf)"
+  },
+  {
+    "suite": "QR Subsystem",
+    "testName": "Bill Verification JSON Endpoint (/verify-bill/:token)",
+    "status": "PASS",
+    "details": "Resolved invoice: MSK/HT/2026-27/0002"
+  },
+  {
+    "suite": "QR Subsystem",
+    "testName": "Physical Mobile Device Hardware Scan",
+    "status": "NOT TESTED",
+    "details": "Physical mobile phone scanner hardware not connected to terminal host"
+  },
+  {
+    "suite": "Financial Integrity",
+    "testName": "TEU Operational Formula (20FT=1, 40FT=2)",
+    "status": "PASS",
+    "details": "1x20ft (1 TEU) + 12x40ft (2 TEUs) = 25 TEUs total"
+  },
+  {
+    "suite": "Database Integrity",
+    "testName": "Production User Records Intact",
+    "status": "PASS",
+    "details": "Exact count: 8"
+  },
+  {
+    "suite": "Database Integrity",
+    "testName": "Production Party Master Records Intact",
+    "status": "PASS",
+    "details": "Exact count: 9"
+  },
+  {
+    "suite": "Database Integrity",
+    "testName": "Production Job Records Intact",
+    "status": "PASS",
+    "details": "Exact count: 7"
+  },
+  {
+    "suite": "Database Integrity",
+    "testName": "Production Invoice Records Intact",
+    "status": "PASS",
+    "details": "Exact count: 46"
+  },
+  {
+    "suite": "Database Integrity",
+    "testName": "Production Payment Records Intact",
+    "status": "PASS",
+    "details": "Exact count: 20"
+  }
+]
