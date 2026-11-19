@@ -1,0 +1,1003 @@
+import crypto from 'crypto';
+import prisma from '../prisma.js';
+import { logAudit } from '../middleware/audit.js';
+import { CalculationService } from '../services/calculationService.js';
+import { PDFService } from '../services/pdfService.js';
+import { EmailService } from '../services/emailService.js';
+import { SequenceService } from '../services/sequenceService.js';
+import { DocumentService } from '../services/documentService.js';
+import { invalidateDashboardCache } from './reportController.js';
+export class InvoiceController {
+    static async getAll(req, res) {
+        try {
+            const { status, paymentStatus, partyId, exporterId, dateFrom, dateTo, search, billType, financialYear, sortBy = 'invoiceDate', sortOrder = 'desc', paginate, } = req.query;
+            const where = {};
+            // 1. Bill Type Filter
+            if (billType && billType !== 'ALL') {
+                where.billType = String(billType);
+            }
+            // 2. Invoice Document Status Filter (DRAFT, FINALIZED, CANCELLED)
+            if (status && status !== 'ALL') {
+                if (status === 'CREDIT_NOTE') {
+                    where.billType = 'CREDIT_NOTE';
+                }
+                else if (status === 'HT_BILL') {
+                    where.billType = 'HT_BILL';
+                }
+                else if (status === 'EMPTY_CONTAINER') {
+                    where.billType = 'EMPTY_CONTAINER';
+                }
+                else {
+                    where.status = String(status);
+                }
+            }
+            // 3. Financial Payment Status Filter (PAID, PARTIALLY_PAID, UNPAID, OVERDUE)
+            if (paymentStatus && paymentStatus !== 'ALL') {
+                if (paymentStatus === 'PAID') {
+                    where.status = { not: 'CANCELLED' };
+                    where.balanceAmount = { lte: 0.01 };
+                }
+                else if (paymentStatus === 'PARTIALLY_PAID') {
+                    where.status = { not: 'CANCELLED' };
+                    where.paidAmount = { gt: 0 };
+                    where.balanceAmount = { gt: 0.01 };
+                }
+                else if (paymentStatus === 'UNPAID') {
+                    where.status = { not: 'CANCELLED' };
+                    where.paidAmount = { lte: 0 };
+                    where.balanceAmount = { gt: 0.01 };
+                }
+                else if (paymentStatus === 'OVERDUE') {
+                    where.status = { not: 'CANCELLED' };
+                    where.balanceAmount = { gt: 0.01 };
+                    where.dueDate = { lt: new Date() };
+                }
+            }
+            // 4. Entity References (Party & Exporter)
+            if (partyId) {
+                where.partyId = String(partyId);
+            }
+            if (exporterId) {
+                where.exporterId = String(exporterId);
+            }
+            // 5. Date Range & Financial Year
+            if (dateFrom || dateTo) {
+                where.invoiceDate = where.invoiceDate || {};
+                if (dateFrom)
+                    where.invoiceDate.gte = new Date(String(dateFrom));
+                if (dateTo) {
+                    const toD = new Date(String(dateTo));
+                    toD.setHours(23, 59, 59, 999);
+                    where.invoiceDate.lte = toD;
+                }
+            }
+            if (financialYear && financialYear !== 'ALL') {
+                const parts = String(financialYear).split('-');
+                if (parts.length === 2) {
+                    const startYear = parseInt(parts[0], 10);
+                    if (!isNaN(startYear)) {
+                        const startFy = new Date(startYear, 3, 1); // 1st April
+                        const endFy = new Date(startYear + 1, 2, 31, 23, 59, 59, 999); // 31st March
+                        where.invoiceDate = {
+                            ...(where.invoiceDate || {}),
+                            gte: startFy,
+                            lte: endFy,
+                        };
+                    }
+                }
+            }
+            // 6. Case-insensitive Global Search across all relevant identifiers
+            if (search) {
+                const query = String(search).trim();
+                where.OR = [
+                    { invoiceNumber: { contains: query, mode: 'insensitive' } },
+                    { originalInvoiceNumber: { contains: query, mode: 'insensitive' } },
+                    { billToName: { contains: query, mode: 'insensitive' } },
+                    { billToGstin: { contains: query, mode: 'insensitive' } },
+                    { sbNumbers: { contains: query, mode: 'insensitive' } },
+                    { party: { legalName: { contains: query, mode: 'insensitive' } } },
+                    { exporter: { name: { contains: query, mode: 'insensitive' } } },
+                    { containers: { some: { containerNumber: { contains: query, mode: 'insensitive' } } } },
+                    { job: { jobNumber: { contains: query, mode: 'insensitive' } } },
+                ];
+            }
+            // 7. Dynamic Sorting
+            const validSortFields = ['invoiceDate', 'grandTotal', 'taxableAmount', 'totalGst', 'balanceAmount', 'paidAmount', 'invoiceNumber', 'createdAt'];
+            const field = validSortFields.includes(String(sortBy)) ? String(sortBy) : 'invoiceDate';
+            const order = String(sortOrder).toLowerCase() === 'asc' ? 'asc' : 'desc';
+            const orderBy = { [field]: order };
+            // 8. Server-side Pagination
+            const limit = req.query.limit ? Math.min(Math.max(Number(req.query.limit), 1), 500) : 250;
+            const page = req.query.page ? Math.max(Number(req.query.page), 1) : 1;
+            const skip = (page - 1) * limit;
+            const [totalCount, invoices] = await Promise.all([
+                prisma.invoice.count({ where }),
+                prisma.invoice.findMany({
+                    where,
+                    take: limit,
+                    skip,
+                    include: {
+                        party: { select: { id: true, legalName: true, gstin: true, mobile: true, email: true } },
+                        exporter: { select: { id: true, name: true } },
+                        job: { select: { id: true, jobNumber: true, port: true } },
+                        containers: { select: { id: true, containerNumber: true, size: true, type: true } },
+                        _count: { select: { items: true, payments: true } },
+                    },
+                    orderBy,
+                }),
+            ]);
+            res.setHeader('X-Total-Count', String(totalCount));
+            if (paginate === 'true' || req.query.page) {
+                return res.json({
+                    invoices,
+                    totalCount,
+                    page,
+                    limit,
+                    totalPages: Math.ceil(totalCount / limit) || 1,
+                });
+            }
+            return res.json(invoices);
+        }
+        catch (err) {
+            return res.status(500).json({ error: err.message });
+        }
+    }
+    static async getById(req, res) {
+        try {
+            const { id } = req.params;
+            const invoice = await prisma.invoice.findUnique({
+                where: { id },
+                include: {
+                    party: true,
+                    exporter: true,
+                    job: true,
+                    containers: true,
+                    items: {
+                        orderBy: { srNo: 'asc' },
+                    },
+                    payments: {
+                        orderBy: { paymentDate: 'desc' },
+                    },
+                    whatsAppMessages: {
+                        orderBy: { sentAt: 'desc' },
+                    },
+                },
+            });
+            if (!invoice)
+                return res.status(404).json({ error: 'Invoice not found' });
+            return res.json(invoice);
+        }
+        catch (err) {
+            return res.status(500).json({ error: err.message });
+        }
+    }
+    static async getNextInvoiceNumber(req, res) {
+        try {
+            const { billType = 'STANDARD', invoiceDate } = req.query;
+            const settings = await prisma.companySettings.findUnique({ where: { id: 'default' } });
+            const d = invoiceDate ? new Date(String(invoiceDate)) : new Date();
+            const nextNumber = await SequenceService.peekNextInvoiceNumber(String(billType), d, settings?.invoicePrefix);
+            return res.json({ nextInvoiceNumber: nextNumber });
+        }
+        catch (err) {
+            return res.status(500).json({ error: err.message });
+        }
+    }
+    static async calculate(req, res) {
+        try {
+            const { items = [], partyStateCode = '27', discountAmount = 0, currency = 'INR', customCgstRate, customSgstRate, customIgstRate, customTotalGstRate, forceInterState, } = req.body;
+            const calculation = await CalculationService.calculateInvoiceTaxes(items, partyStateCode, Number(discountAmount || 0), currency, {
+                customCgstRate: customCgstRate !== undefined ? Number(customCgstRate) : undefined,
+                customSgstRate: customSgstRate !== undefined ? Number(customSgstRate) : undefined,
+                customIgstRate: customIgstRate !== undefined ? Number(customIgstRate) : undefined,
+                customTotalGstRate: customTotalGstRate !== undefined ? Number(customTotalGstRate) : undefined,
+                forceInterState: typeof forceInterState === 'boolean' ? forceInterState : undefined,
+            });
+            return res.json(calculation);
+        }
+        catch (err) {
+            return res.status(400).json({ error: err.message });
+        }
+    }
+    static async create(req, res) {
+        try {
+            const { invoiceNumber: customInvoiceNumber, billType = 'STANDARD', idempotencyKey: bodyIdempotencyKey, originalInvoiceId, originalInvoiceNumber, originalInvoiceDate, reasonForCredit, verificationToken, vesselVoyage, mblHbl, portOfLoading, portOfDischarge, invoiceDate, dueDate, partyId, exporterId, jobId, sbNumbers, consigneeName, consigneeAddress, currency = 'INR', items = [], containers = [], discountAmount = 0, notes, terms, status = 'DRAFT', templateId = 'format-1', customCgstRate, customSgstRate, customIgstRate, customTotalGstRate, forceInterState, } = req.body;
+            // 1. Concurrency & Retry Idempotency: Prevent duplicate submissions
+            const rawKey = req.headers['idempotency-key'] || bodyIdempotencyKey;
+            const idempotencyKey = typeof rawKey === 'string' && rawKey.trim().length > 0 ? rawKey.trim() : null;
+            if (idempotencyKey) {
+                const existingInvoice = await prisma.invoice.findUnique({
+                    where: { idempotencyKey },
+                    include: {
+                        party: { select: { id: true, legalName: true, gstin: true } },
+                        job: { select: { id: true, jobNumber: true } },
+                        containers: true,
+                        items: { orderBy: { srNo: 'asc' } },
+                        payments: { orderBy: { paymentDate: 'desc' } },
+                    },
+                });
+                if (existingInvoice) {
+                    res.setHeader('Idempotent-Replay', 'true');
+                    return res.status(200).json(existingInvoice);
+                }
+            }
+            if (!partyId) {
+                return res.status(400).json({ error: 'Party is required to create an invoice' });
+            }
+            const party = await prisma.party.findUnique({ where: { id: partyId } });
+            if (!party) {
+                return res.status(404).json({ error: 'Party not found' });
+            }
+            const settings = await prisma.companySettings.findUnique({ where: { id: 'default' } });
+            // Generate persistent secure verification token for QR code
+            const token = verificationToken || crypto.randomBytes(16).toString('hex');
+            // Calculate totals and taxes with custom GST options if specified
+            const taxCalc = await CalculationService.calculateInvoiceTaxes(items, party.stateCode, discountAmount, currency, {
+                customCgstRate: customCgstRate !== undefined ? Number(customCgstRate) : undefined,
+                customSgstRate: customSgstRate !== undefined ? Number(customSgstRate) : undefined,
+                customIgstRate: customIgstRate !== undefined ? Number(customIgstRate) : undefined,
+                customTotalGstRate: customTotalGstRate !== undefined ? Number(customTotalGstRate) : undefined,
+                forceInterState: typeof forceInterState === 'boolean' ? forceInterState : undefined,
+            });
+            // Persist template selection cleanly in notes metadata
+            const cleanTemplate = ['format-1', 'format-2', 'format-3', 'format-4', 'format-5'].includes(templateId)
+                ? templateId
+                : 'format-1';
+            const notesWithTemplate = notes
+                ? (notes.includes('[TEMPLATE:') ? notes.replace(/\[TEMPLATE:format-[1-5]\]/, `[TEMPLATE:${cleanTemplate}]`) : `${notes}\n[TEMPLATE:${cleanTemplate}]`)
+                : `[TEMPLATE:${cleanTemplate}]`;
+            const invDate = invoiceDate ? new Date(invoiceDate) : new Date();
+            // Execute atomic transaction for sequence generation, invoice creation, containers, items, and credit-note balance update
+            const invoice = await prisma.$transaction(async (tx) => {
+                let invoiceNumber = customInvoiceNumber ? String(customInvoiceNumber).trim() : '';
+                // Concurrency-safe atomic sequence generation
+                if (!invoiceNumber) {
+                    invoiceNumber = await SequenceService.getNextInvoiceNumber(tx, billType, invDate, settings?.invoicePrefix);
+                }
+                else {
+                    // If custom invoice number supplied, ensure uniqueness
+                    const existing = await tx.invoice.findUnique({
+                        where: { invoiceNumber },
+                        select: { id: true },
+                    });
+                    if (existing) {
+                        throw new Error(`Invoice number "${invoiceNumber}" is already in use.`);
+                    }
+                }
+                // Prepare container records
+                const containerRecords = containers.map((c) => ({
+                    containerId: c.containerId || null,
+                    containerNumber: c.containerNumber,
+                    size: c.size || '20 FT',
+                    type: c.type || 'DRY',
+                    cartingDate: c.cartingDate ? new Date(c.cartingDate) : null,
+                    emptyGateInDate: c.emptyGateInDate ? new Date(c.emptyGateInDate) : null,
+                    stuffingDate: c.stuffingDate ? new Date(c.stuffingDate) : null,
+                    lddOutDate: c.lddOutDate ? new Date(c.lddOutDate) : null,
+                    emptyGroundDays: Number(c.emptyGroundDays || c.emptyGroundRentDays || 0),
+                    daysAfterCarting: Number(c.daysAfterCarting || 0),
+                    loadedGroundDays: Number(c.loadedGroundDays || 0),
+                    htCharges: Number(c.htCharges || 0),
+                    logisticsCharges: Number(c.logisticsCharges || 0),
+                    emptyTransportCharges: Number(c.emptyTransportCharges || 0),
+                }));
+                // Prepare item records
+                let sr = 1;
+                const itemRecords = items.map((item) => {
+                    const lineQty = Number(item.quantity || 1);
+                    const lineRate = Number(item.rate || 0);
+                    const lineAmt = lineQty * lineRate;
+                    const lineDisc = Number(item.discount || 0);
+                    const lineTaxable = Math.max(0, lineAmt - lineDisc);
+                    const cgstAmt = taxCalc.isInterState ? 0 : Math.round(lineTaxable * (taxCalc.cgstRate / 100) * 100) / 100;
+                    const sgstAmt = taxCalc.isInterState ? 0 : Math.round(lineTaxable * (taxCalc.sgstRate / 100) * 100) / 100;
+                    const igstAmt = taxCalc.isInterState ? Math.round(lineTaxable * (taxCalc.igstRate / 100) * 100) / 100 : 0;
+                    const totalAmt = lineTaxable + cgstAmt + sgstAmt + igstAmt;
+                    return {
+                        containerId: item.containerId || null,
+                        containerNumber: item.containerNumber || null,
+                        containerSize: item.containerSize || null,
+                        chargeMasterId: item.chargeMasterId || null,
+                        srNo: sr++,
+                        description: item.description,
+                        hsnSacCode: item.hsnSacCode || '996719',
+                        quantity: lineQty,
+                        unit: item.unit || 'PER_CONTAINER',
+                        rate: lineRate,
+                        amount: lineAmt,
+                        discount: lineDisc,
+                        taxableValue: lineTaxable,
+                        cgstRate: taxCalc.cgstRate,
+                        cgstAmount: cgstAmt,
+                        sgstRate: taxCalc.sgstRate,
+                        sgstAmount: sgstAmt,
+                        igstRate: taxCalc.igstRate,
+                        igstAmount: igstAmt,
+                        totalAmount: totalAmt,
+                    };
+                });
+                // Atomic create
+                const newInv = await tx.invoice.create({
+                    data: {
+                        idempotencyKey,
+                        invoiceNumber,
+                        billType,
+                        originalInvoiceId: originalInvoiceId || null,
+                        originalInvoiceNumber: originalInvoiceNumber || null,
+                        originalInvoiceDate: originalInvoiceDate ? new Date(originalInvoiceDate) : null,
+                        reasonForCredit: reasonForCredit || null,
+                        verificationToken: token,
+                        vesselVoyage: vesselVoyage || null,
+                        mblHbl: mblHbl || null,
+                        portOfLoading: portOfLoading || null,
+                        portOfDischarge: portOfDischarge || null,
+                        invoiceDate: invDate,
+                        dueDate: dueDate ? new Date(dueDate) : null,
+                        partyId,
+                        exporterId: exporterId || null,
+                        jobId: jobId || null,
+                        status,
+                        currency: currency || 'INR',
+                        billToName: party.legalName,
+                        billToGstin: party.gstin,
+                        billToAddress: party.billingAddress || party.registeredAddress || 'Maharashtra, India',
+                        billToState: party.state,
+                        billToStateCode: party.stateCode,
+                        consigneeName,
+                        consigneeAddress,
+                        sbNumbers,
+                        subtotal: taxCalc.subtotal,
+                        discountAmount: taxCalc.discountAmount,
+                        taxableAmount: taxCalc.taxableAmount,
+                        isInterState: taxCalc.isInterState,
+                        cgstRate: taxCalc.cgstRate,
+                        cgstAmount: taxCalc.cgstAmount,
+                        sgstRate: taxCalc.sgstRate,
+                        sgstAmount: taxCalc.sgstAmount,
+                        igstRate: taxCalc.igstRate,
+                        igstAmount: taxCalc.igstAmount,
+                        totalGst: taxCalc.totalGst,
+                        roundOff: taxCalc.roundOff,
+                        grandTotal: taxCalc.grandTotal,
+                        amountInWords: taxCalc.amountInWords,
+                        paidAmount: 0,
+                        balanceAmount: taxCalc.grandTotal,
+                        terms: terms || settings?.termsAndConditions,
+                        notes: notesWithTemplate || settings?.invoiceNotes,
+                        finalizedAt: status === 'FINALIZED' ? new Date() : null,
+                        finalizedBy: status === 'FINALIZED' ? req.user?.name : null,
+                        containers: containerRecords.length > 0 ? { create: containerRecords } : undefined,
+                        items: itemRecords.length > 0 ? { create: itemRecords } : undefined,
+                    },
+                    include: {
+                        party: { select: { id: true, legalName: true, gstin: true } },
+                        job: { select: { id: true, jobNumber: true } },
+                        containers: true,
+                        items: { orderBy: { srNo: 'asc' } },
+                    },
+                });
+                // Atomic credit note adjustment on original invoice
+                if (originalInvoiceId && billType === 'CREDIT_NOTE') {
+                    const origInv = await tx.invoice.findUnique({ where: { id: originalInvoiceId } });
+                    if (origInv) {
+                        const adjustedBalance = Math.max(0, origInv.balanceAmount - taxCalc.grandTotal);
+                        await tx.invoice.update({
+                            where: { id: originalInvoiceId },
+                            data: { balanceAmount: adjustedBalance },
+                        });
+                    }
+                }
+                return newInv;
+            }, {
+                maxWait: 10000,
+                timeout: 20000,
+            });
+            // Background document archiving with checksum in durable storage
+            setImmediate(async () => {
+                try {
+                    const pdfBuffer = await PDFService.generateInvoicePDF(invoice.id);
+                    await DocumentService.saveInvoiceDocument(invoice.id, invoice.invoiceNumber, invoice.billType || 'STANDARD', pdfBuffer, { createdBy: req.user?.id, autoArchived: true });
+                }
+                catch (pdfErr) {
+                    console.warn(`[DocumentService] Async PDF generation for ${invoice.invoiceNumber}:`, pdfErr);
+                }
+            });
+            const sym = invoice.currency === 'USD' ? '$' : '₹';
+            const docLabel = invoice.billType === 'CREDIT_NOTE' ? 'credit note' : 'invoice';
+            await logAudit({
+                action: 'CREATE',
+                entityType: 'INVOICE',
+                entityId: invoice.id,
+                details: `Created ${docLabel} ${invoice.invoiceNumber} (${invoice.status}) for ${sym}${invoice.grandTotal}`,
+                req,
+            });
+            invalidateDashboardCache();
+            return res.status(201).json(invoice);
+        }
+        catch (err) {
+            console.error('Invoice create error:', err);
+            return res.status(500).json({ error: err.message });
+        }
+    }
+    static async update(req, res) {
+        try {
+            const { id } = req.params;
+            const existing = await prisma.invoice.findUnique({
+                where: { id },
+                include: { items: true, containers: true },
+            });
+            if (!existing)
+                return res.status(404).json({ error: 'Invoice not found' });
+            // If finalized and user is not admin, prevent modifying financial lines
+            if (existing.status === 'FINALIZED' && req.user?.role !== 'ADMIN') {
+                return res.status(403).json({ error: 'Finalized invoices cannot be modified without Admin authorization.' });
+            }
+            const { invoiceDate, dueDate, exporterId, jobId, sbNumbers, consigneeName, consigneeAddress, currency, items, containers, discountAmount, notes, terms, status, templateId, customCgstRate, customSgstRate, customIgstRate, customTotalGstRate, forceInterState, } = req.body;
+            const partyStateCode = existing.billToStateCode;
+            const activeCurrency = currency !== undefined ? currency : (existing.currency || 'INR');
+            let activeNotes = notes !== undefined ? notes : existing.notes;
+            if (templateId && ['format-1', 'format-2', 'format-3', 'format-4', 'format-5'].includes(templateId)) {
+                if (activeNotes && activeNotes.includes('[TEMPLATE:')) {
+                    activeNotes = activeNotes.replace(/\[TEMPLATE:format-[1-5]\]/, `[TEMPLATE:${templateId}]`);
+                }
+                else if (activeNotes) {
+                    activeNotes = `${activeNotes}\n[TEMPLATE:${templateId}]`;
+                }
+                else {
+                    activeNotes = `[TEMPLATE:${templateId}]`;
+                }
+            }
+            let updateData = {
+                invoiceDate: invoiceDate ? new Date(invoiceDate) : existing.invoiceDate,
+                dueDate: dueDate ? new Date(dueDate) : existing.dueDate,
+                exporterId: exporterId !== undefined ? exporterId : existing.exporterId,
+                jobId: jobId !== undefined ? jobId : existing.jobId,
+                sbNumbers: sbNumbers !== undefined ? sbNumbers : existing.sbNumbers,
+                consigneeName: consigneeName !== undefined ? consigneeName : existing.consigneeName,
+                consigneeAddress: consigneeAddress !== undefined ? consigneeAddress : existing.consigneeAddress,
+                notes: activeNotes,
+                terms: terms !== undefined ? terms : existing.terms,
+                status: status !== undefined ? status : existing.status,
+            };
+            if (currency !== undefined) {
+                updateData.currency = currency;
+            }
+            let taxCalc = null;
+            if (items && Array.isArray(items)) {
+                taxCalc = await CalculationService.calculateInvoiceTaxes(items, partyStateCode, discountAmount !== undefined ? discountAmount : existing.discountAmount, activeCurrency, {
+                    customCgstRate: customCgstRate !== undefined ? Number(customCgstRate) : undefined,
+                    customSgstRate: customSgstRate !== undefined ? Number(customSgstRate) : undefined,
+                    customIgstRate: customIgstRate !== undefined ? Number(customIgstRate) : undefined,
+                    customTotalGstRate: customTotalGstRate !== undefined ? Number(customTotalGstRate) : undefined,
+                    forceInterState: typeof forceInterState === 'boolean' ? forceInterState : undefined,
+                });
+                updateData = {
+                    ...updateData,
+                    subtotal: taxCalc.subtotal,
+                    discountAmount: taxCalc.discountAmount,
+                    taxableAmount: taxCalc.taxableAmount,
+                    isInterState: taxCalc.isInterState,
+                    cgstRate: taxCalc.cgstRate,
+                    cgstAmount: taxCalc.cgstAmount,
+                    sgstRate: taxCalc.sgstRate,
+                    sgstAmount: taxCalc.sgstAmount,
+                    igstRate: taxCalc.igstRate,
+                    igstAmount: taxCalc.igstAmount,
+                    totalGst: taxCalc.totalGst,
+                    roundOff: taxCalc.roundOff,
+                    grandTotal: taxCalc.grandTotal,
+                    amountInWords: taxCalc.amountInWords,
+                    balanceAmount: Math.max(0, taxCalc.grandTotal - existing.paidAmount),
+                };
+            }
+            // Atomically update invoice header, replace items and containers in a single transaction
+            const updated = await prisma.$transaction(async (tx) => {
+                if (items && Array.isArray(items) && taxCalc) {
+                    await tx.invoiceItem.deleteMany({ where: { invoiceId: id } });
+                    let sr = 1;
+                    for (const item of items) {
+                        const lineQty = Number(item.quantity || 1);
+                        const lineRate = Number(item.rate || 0);
+                        const lineAmt = lineQty * lineRate;
+                        const lineDisc = Number(item.discount || 0);
+                        const lineTaxable = Math.max(0, lineAmt - lineDisc);
+                        const cgstAmt = taxCalc.isInterState ? 0 : Math.round(lineTaxable * (taxCalc.cgstRate / 100) * 100) / 100;
+                        const sgstAmt = taxCalc.isInterState ? 0 : Math.round(lineTaxable * (taxCalc.sgstRate / 100) * 100) / 100;
+                        const igstAmt = taxCalc.isInterState ? Math.round(lineTaxable * (taxCalc.igstRate / 100) * 100) / 100 : 0;
+                        const totalAmt = lineTaxable + cgstAmt + sgstAmt + igstAmt;
+                        await tx.invoiceItem.create({
+                            data: {
+                                invoiceId: id,
+                                containerId: item.containerId || null,
+                                chargeMasterId: item.chargeMasterId || null,
+                                srNo: sr++,
+                                description: item.description,
+                                hsnSacCode: item.hsnSacCode || '996719',
+                                quantity: lineQty,
+                                unit: item.unit || 'PER_CONTAINER',
+                                rate: lineRate,
+                                amount: lineAmt,
+                                discount: lineDisc,
+                                taxableValue: lineTaxable,
+                                cgstRate: taxCalc.cgstRate,
+                                cgstAmount: cgstAmt,
+                                sgstRate: taxCalc.sgstRate,
+                                sgstAmount: sgstAmt,
+                                igstRate: taxCalc.igstRate,
+                                igstAmount: igstAmt,
+                                totalAmount: totalAmt,
+                            },
+                        });
+                    }
+                }
+                // Update containers if provided
+                if (containers && Array.isArray(containers)) {
+                    await tx.invoiceContainer.deleteMany({ where: { invoiceId: id } });
+                    for (const c of containers) {
+                        await tx.invoiceContainer.create({
+                            data: {
+                                invoiceId: id,
+                                containerId: c.containerId || null,
+                                containerNumber: c.containerNumber,
+                                size: c.size || '20 FT',
+                                type: c.type || 'DRY',
+                                cartingDate: c.cartingDate ? new Date(c.cartingDate) : null,
+                                emptyGateInDate: c.emptyGateInDate ? new Date(c.emptyGateInDate) : null,
+                                stuffingDate: c.stuffingDate ? new Date(c.stuffingDate) : null,
+                                lddOutDate: c.lddOutDate ? new Date(c.lddOutDate) : null,
+                                emptyGroundDays: Number(c.emptyGroundDays || c.emptyGroundRentDays || 0),
+                                daysAfterCarting: Number(c.daysAfterCarting || 0),
+                                loadedGroundDays: Number(c.loadedGroundDays || 0),
+                                htCharges: Number(c.htCharges || 0),
+                                logisticsCharges: Number(c.logisticsCharges || 0),
+                                emptyTransportCharges: Number(c.emptyTransportCharges || 0),
+                            },
+                        });
+                    }
+                }
+                return tx.invoice.update({
+                    where: { id },
+                    data: updateData,
+                    include: { items: true, containers: true },
+                });
+            }, {
+                maxWait: 10000,
+                timeout: 20000,
+            });
+            // Background document re-archiving with checksum in durable storage
+            setImmediate(async () => {
+                try {
+                    const pdfBuffer = await PDFService.generateInvoicePDF(updated.id);
+                    await DocumentService.saveInvoiceDocument(updated.id, updated.invoiceNumber, updated.billType || 'STANDARD', pdfBuffer, { updatedBy: req.user?.id, autoUpdated: true });
+                }
+                catch (pdfErr) {
+                    console.warn(`[DocumentService] Async PDF update for ${updated.invoiceNumber}:`, pdfErr);
+                }
+            });
+            await logAudit({
+                action: 'UPDATE',
+                entityType: 'INVOICE',
+                entityId: id,
+                details: `Updated invoice ${updated.invoiceNumber}`,
+                oldValues: existing,
+                newValues: updated,
+                req,
+            });
+            invalidateDashboardCache();
+            return res.json(updated);
+        }
+        catch (err) {
+            return res.status(500).json({ error: err.message });
+        }
+    }
+    static async finalize(req, res) {
+        try {
+            const { id } = req.params;
+            const invoice = await prisma.invoice.findUnique({ where: { id } });
+            if (!invoice)
+                return res.status(404).json({ error: 'Invoice not found' });
+            if (invoice.status === 'FINALIZED') {
+                return res.status(400).json({ error: 'Invoice is already finalized' });
+            }
+            const updated = await prisma.invoice.update({
+                where: { id },
+                data: {
+                    status: 'FINALIZED',
+                    finalizedAt: new Date(),
+                    finalizedBy: req.user?.name || 'Authorized User',
+                },
+            });
+            const sym = updated.currency === 'USD' ? '$' : '₹';
+            await logAudit({
+                action: 'FINALIZE',
+                entityType: 'INVOICE',
+                entityId: id,
+                details: `Finalized invoice ${updated.invoiceNumber} for ${sym}${updated.grandTotal}`,
+                req,
+            });
+            invalidateDashboardCache();
+            return res.json(updated);
+        }
+        catch (err) {
+            return res.status(500).json({ error: err.message });
+        }
+    }
+    static async cancel(req, res) {
+        try {
+            const { id } = req.params;
+            const { reason = 'Cancelled by user' } = req.body;
+            const invoice = await prisma.invoice.findUnique({ where: { id } });
+            if (!invoice)
+                return res.status(404).json({ error: 'Invoice not found' });
+            const updated = await prisma.invoice.update({
+                where: { id },
+                data: {
+                    status: 'CANCELLED',
+                    balanceAmount: 0,
+                    notes: `${invoice.notes ? invoice.notes + '\n' : ''}[CANCELLED]: ${reason}`,
+                },
+            });
+            await logAudit({
+                action: 'CANCEL',
+                entityType: 'INVOICE',
+                entityId: id,
+                details: `Cancelled invoice ${updated.invoiceNumber}. Reason: ${reason}`,
+                req,
+            });
+            invalidateDashboardCache();
+            return res.json(updated);
+        }
+        catch (err) {
+            return res.status(500).json({ error: err.message });
+        }
+    }
+    static async delete(req, res) {
+        try {
+            const { id } = req.params;
+            const invoice = await prisma.invoice.findUnique({
+                where: { id },
+                include: { payments: true },
+            });
+            if (!invoice) {
+                return res.status(404).json({ error: 'Invoice not found' });
+            }
+            if (invoice.payments && invoice.payments.length > 0) {
+                return res.status(400).json({
+                    error: 'Cannot delete invoice with recorded payments. Please void or cancel the payments first.',
+                });
+            }
+            await prisma.$transaction([
+                prisma.invoiceItem.deleteMany({ where: { invoiceId: id } }),
+                prisma.invoiceContainer.deleteMany({ where: { invoiceId: id } }),
+                prisma.document.deleteMany({ where: { entityType: 'INVOICE', entityId: id } }),
+                prisma.invoice.delete({ where: { id } }),
+            ]);
+            await logAudit({
+                action: 'DELETE',
+                entityType: 'INVOICE',
+                entityId: id,
+                details: `Deleted invoice ${invoice.invoiceNumber} (${invoice.status})`,
+                req,
+            });
+            invalidateDashboardCache();
+            return res.json({ success: true, message: `Invoice ${invoice.invoiceNumber} deleted successfully` });
+        }
+        catch (err) {
+            return res.status(500).json({ error: err.message });
+        }
+    }
+    static async getPdf(req, res) {
+        try {
+            const { id } = req.params;
+            const { templateId, forceRegenerate, download } = req.query;
+            const invoice = await prisma.invoice.findUnique({ where: { id } });
+            if (!invoice)
+                return res.status(404).json({ error: 'Invoice not found' });
+            let pdfBuffer = null;
+            // Check persistent document storage first if no template override and not forcing regeneration
+            if (!forceRegenerate && !templateId) {
+                const cached = await DocumentService.getInvoiceDocument(id);
+                if (cached && cached.buffer) {
+                    pdfBuffer = cached.buffer;
+                }
+            }
+            // Generate if not cached or regeneration explicitly requested
+            if (!pdfBuffer) {
+                pdfBuffer = await PDFService.generateInvoicePDF(id, undefined, {
+                    templateId: templateId ? String(templateId) : undefined,
+                });
+                // Store in durable document store with checksum
+                try {
+                    await DocumentService.saveInvoiceDocument(invoice.id, invoice.invoiceNumber, invoice.billType || 'STANDARD', pdfBuffer, { requestedBy: req.user?.id, templateId: templateId || 'default' });
+                }
+                catch (saveErr) {
+                    console.warn('[DocumentService] Caching PDF warning:', saveErr);
+                }
+            }
+            const filename = `Invoice_${invoice.invoiceNumber.replace(/[\/\\]/g, '_')}.pdf`;
+            const isDownload = download === '1' || download === 'true';
+            res.setHeader('Content-Type', 'application/pdf');
+            res.setHeader('Content-Disposition', `${isDownload ? 'attachment' : 'inline'}; filename="${filename}"`);
+            res.setHeader('Content-Length', pdfBuffer.length);
+            return res.send(pdfBuffer);
+        }
+        catch (err) {
+            return res.status(500).json({ error: err.message });
+        }
+    }
+    static async sendEmail(req, res) {
+        try {
+            const { id } = req.params;
+            const { recipientEmail, recipientName, ccEmail, subject, customMessage, templateId = 'format-1', } = req.body;
+            if (!recipientEmail || !String(recipientEmail).trim()) {
+                return res.status(400).json({ error: 'Recipient email address is required.' });
+            }
+            const result = await EmailService.sendInvoiceEmail({
+                invoiceId: id,
+                recipientEmail: String(recipientEmail).trim(),
+                recipientName: recipientName ? String(recipientName) : undefined,
+                ccEmail: ccEmail ? String(ccEmail).trim() : undefined,
+                subject: subject ? String(subject) : undefined,
+                customMessage: customMessage ? String(customMessage) : undefined,
+                templateId: String(templateId),
+                userId: req.user?.id,
+                userName: req.user?.name,
+            });
+            return res.json(result);
+        }
+        catch (err) {
+            return res.status(400).json({ error: err.message || 'Failed to dispatch invoice email' });
+        }
+    }
+    /**
+     * Unified Public Bill Verification Endpoint
+     * Works for all bill types: Forwarding, Tax Invoice, Credit Note, H&T Bill, Empty Container Bill
+     * If accessed from a mobile browser (camera QR scan), immediately streams the original PDF directly.
+     * If accessed via JSON API fetch, returns document metadata.
+     */
+    static async verifyBill(req, res) {
+        // If not an explicit JSON API request, stream the PDF directly into the mobile browser
+        const acceptsJson = req.headers.accept?.includes('application/json');
+        if (!acceptsJson) {
+            return InvoiceController.streamDirectBillPdf(req, res);
+        }
+        try {
+            const rawToken = req.params.token;
+            if (!rawToken || typeof rawToken !== 'string' || rawToken.trim() === '') {
+                return res.status(400).json({ verified: false, error: 'Verification token is required.' });
+            }
+            const token = rawToken.replace(/\.pdf$/i, '').trim();
+            const invoice = await prisma.invoice.findFirst({
+                where: { verificationToken: token },
+                include: {
+                    party: true,
+                    exporter: true,
+                    job: true,
+                    containers: {
+                        include: { container: true },
+                        orderBy: { containerNumber: 'asc' },
+                    },
+                    items: {
+                        orderBy: { srNo: 'asc' },
+                    },
+                },
+            });
+            if (!invoice) {
+                return res.status(404).json({
+                    verified: false,
+                    error: 'Bill verification link is invalid or unavailable.',
+                });
+            }
+            const settings = await prisma.companySettings.findUnique({ where: { id: 'default' } });
+            return res.json({
+                verified: true,
+                id: invoice.id,
+                verificationToken: invoice.verificationToken,
+                invoiceNumber: invoice.invoiceNumber,
+                billType: invoice.billType || 'FORWARDING',
+                templateId: invoice.templateId || 'format-1',
+                invoiceDate: invoice.invoiceDate,
+                dueDate: invoice.dueDate,
+                status: invoice.status,
+                currency: invoice.currency || 'INR',
+                taxableAmount: invoice.taxableAmount,
+                subTotal: invoice.subtotal,
+                cgstRate: invoice.cgstRate,
+                cgstAmount: invoice.cgstAmount,
+                sgstRate: invoice.sgstRate,
+                sgstAmount: invoice.sgstAmount,
+                igstRate: invoice.igstRate,
+                igstAmount: invoice.igstAmount,
+                totalGst: invoice.totalGst,
+                grandTotal: invoice.grandTotal,
+                totalAmount: invoice.grandTotal,
+                paidAmount: invoice.paidAmount,
+                balanceAmount: invoice.balanceAmount,
+                amountInWords: invoice.amountInWords,
+                isInterState: invoice.isInterState,
+                discountAmount: invoice.discountAmount,
+                terms: invoice.terms,
+                notes: invoice.notes,
+                // Maritime / Consignment Details
+                vesselVoyage: invoice.vesselVoyage,
+                mblHbl: invoice.mblHbl,
+                portOfLoading: invoice.portOfLoading,
+                portOfDischarge: invoice.portOfDischarge,
+                // Credit note specific
+                originalInvoiceNumber: invoice.originalInvoiceNumber,
+                originalInvoiceDate: invoice.originalInvoiceDate,
+                reasonForCredit: invoice.reasonForCredit,
+                // Billed To / Recipient Details
+                billToName: invoice.billToName || invoice.party?.legalName || 'N/A',
+                billToGstin: invoice.billToGstin || invoice.party?.gstin || 'URP',
+                billToAddress: invoice.billToAddress || invoice.party?.registeredAddress || '',
+                billToState: invoice.billToState || invoice.party?.state || 'Maharashtra',
+                billToStateCode: invoice.billToStateCode || invoice.party?.stateCode || '27',
+                // Associated entities
+                party: invoice.party ? {
+                    id: invoice.party.id,
+                    legalName: invoice.party.legalName,
+                    tradeName: invoice.party.tradeName,
+                    gstin: invoice.party.gstin,
+                    pan: invoice.party.pan || (invoice.party.gstin && invoice.party.gstin.length >= 12 ? invoice.party.gstin.slice(2, 12) : null),
+                    address: invoice.party.registeredAddress,
+                    state: invoice.party.state,
+                    stateCode: invoice.party.stateCode,
+                    contactPerson: invoice.party.contactPerson,
+                    mobile: invoice.party.mobile,
+                    email: invoice.party.email,
+                } : null,
+                exporter: invoice.exporter ? {
+                    id: invoice.exporter.id,
+                    name: invoice.exporter.name,
+                    iec: invoice.exporter.iecCode,
+                    gstin: invoice.exporter.gstin,
+                    address: invoice.exporter.address,
+                } : null,
+                job: invoice.job ? {
+                    id: invoice.job.id,
+                    jobNumber: invoice.job.jobNumber,
+                    customJobNumber: invoice.job.jobNumber,
+                    shippingBillNumber: invoice.job.sbNumber,
+                    blNumber: invoice.job.shipmentRef,
+                    shippingLine: invoice.job.bookingDetails,
+                } : null,
+                containersCount: invoice.containers.length,
+                itemsCount: invoice.items.length,
+                containers: invoice.containers.map((c) => ({
+                    id: c.id,
+                    containerNumber: c.containerNumber,
+                    size: c.size,
+                    type: c.type,
+                    sealNumber: c.sealNumber || null,
+                    cartingDate: c.cartingDate,
+                    emptyGateInDate: c.emptyGateInDate,
+                    stuffingDate: c.stuffingDate,
+                    lddOutDate: c.lddOutDate,
+                    emptyGroundDays: c.emptyGroundDays,
+                    daysAfterCarting: c.daysAfterCarting,
+                    loadedGroundDays: c.loadedGroundDays,
+                })),
+                items: invoice.items.map((i) => ({
+                    id: i.id,
+                    srNo: i.srNo,
+                    description: i.description,
+                    hsnSacCode: i.hsnSacCode,
+                    rate: i.rate,
+                    quantity: i.quantity,
+                    taxableValue: i.taxableValue,
+                })),
+                company: {
+                    name: settings?.companyName || 'MSK LOGISTIC SOLUTION',
+                    gstin: settings?.gstin || '27AXWPK4562G1ZX',
+                    pan: settings?.pan || 'AXWPK4562G',
+                    tan: settings?.tan || 'PNES72845D',
+                    address: settings?.address || 'JNPT Township Colony, Sector - 3, Building No. B/48, Office No. 3, Navi Mumbai - 400702',
+                    city: settings?.city || 'Navi Mumbai',
+                    pincode: settings?.pincode || '400702',
+                    phone: settings?.phone || '+91 8104592823',
+                    email: settings?.email || 'accounts@msklogisticsolution.com',
+                    website: settings?.website || 'www.msklogisticsolution.com',
+                    bankName: settings?.bankName || 'ICICI Bank',
+                    bankAccountName: settings?.bankAccountName || 'MSK LOGISTIC SOLUTION',
+                    bankAccountNo: settings?.bankAccountNo || '574005000006',
+                    bankBranch: settings?.bankBranch || 'Dronagiri Node (Nhava Sheva)',
+                    bankIfsc: settings?.bankIfsc || 'ICIC0005740',
+                },
+                verifiedAt: new Date().toISOString(),
+            });
+        }
+        catch (err) {
+            console.error('Bill verification error:', err);
+            return res.status(500).json({ verified: false, error: 'Internal verification service error.' });
+        }
+    }
+    /**
+     * Direct Bill PDF Stream for Scannable QR Codes
+     * Mobile phone camera / QR scan opens the original bill PDF directly in native viewer
+     * No intermediate verification portal, no landing page, no login required
+     */
+    static async streamDirectBillPdf(req, res) {
+        try {
+            const rawToken = req.params.token;
+            if (!rawToken || typeof rawToken !== 'string') {
+                res.setHeader('Content-Type', 'text/html; charset=utf-8');
+                return res.status(400).send(`
+          <!DOCTYPE html>
+          <html>
+            <head><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Bill Not Found</title></head>
+            <body style="font-family:sans-serif;text-align:center;padding:40px 20px;color:#1e293b;">
+              <h2 style="color:#dc2626;">Invalid Bill Link</h2>
+              <p>A verification token is required to open this document.</p>
+            </body>
+          </html>
+        `);
+            }
+            // Strip .pdf suffix if present in URL path
+            const token = rawToken.replace(/\.pdf$/i, '').trim();
+            const invoice = await prisma.invoice.findFirst({
+                where: { verificationToken: token },
+                select: { id: true, invoiceNumber: true, status: true, billType: true },
+            });
+            if (!invoice) {
+                res.setHeader('Content-Type', 'text/html; charset=utf-8');
+                return res.status(404).send(`
+          <!DOCTYPE html>
+          <html>
+            <head><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Bill Not Found - MSK Logistic Solution</title></head>
+            <body style="font-family:sans-serif;text-align:center;padding:40px 20px;color:#1e293b;background:#f8fafc;">
+              <div style="max-width:480px;margin:40px auto;background:#ffffff;padding:32px;border-radius:16px;box-shadow:0 10px 25px rgba(0,0,0,0.05);border:1px solid #e2e8f0;">
+                <h2 style="color:#dc2626;margin-top:0;">Bill Not Found</h2>
+                <p style="font-size:14px;color:#64748b;line-height:1.6;">Bill verification link is invalid or unavailable.</p>
+                <p style="font-size:12px;color:#94a3b8;margin-top:20px;">MSK Logistic Solution ERP Document System</p>
+              </div>
+            </body>
+          </html>
+        `);
+            }
+            // Fast-path: Check durable document storage first for instant streaming (~10ms)
+            const cached = await DocumentService.getInvoiceDocument(invoice.id);
+            let pdfBuffer;
+            if (cached && cached.buffer) {
+                pdfBuffer = cached.buffer;
+            }
+            else {
+                // Generate the exact original PDF for this bill
+                pdfBuffer = await PDFService.generateInvoicePDF(invoice.id);
+                // Persist to document storage so subsequent scans open in ~10ms
+                DocumentService.saveInvoiceDocument(invoice.id, invoice.invoiceNumber, invoice.billType || 'STANDARD', pdfBuffer, { source: 'qr_verification' }).catch((e) => console.warn('[streamDirectBillPdf] caching warning:', e));
+            }
+            const safeInvoiceNumber = (invoice.invoiceNumber || 'MSK_Bill').replace(/[/\\?%*:|"<>]/g, '_');
+            res.setHeader('Content-Type', 'application/pdf');
+            // 'inline' disposition instructs mobile Safari / Chrome to open the PDF viewer directly
+            res.setHeader('Content-Disposition', `inline; filename="${safeInvoiceNumber}.pdf"`);
+            res.setHeader('Content-Length', pdfBuffer.length);
+            res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
+            res.setHeader('Accept-Ranges', 'bytes');
+            return res.send(pdfBuffer);
+        }
+        catch (err) {
+            console.error('Error streaming direct bill PDF:', err);
+            res.setHeader('Content-Type', 'text/html; charset=utf-8');
+            return res.status(500).send(`
+        <!DOCTYPE html>
+        <html>
+          <head><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Error Opening Bill</title></head>
+          <body style="font-family:sans-serif;text-align:center;padding:40px 20px;color:#1e293b;">
+            <h2 style="color:#dc2626;">Error Opening Bill</h2>
+            <p>An unexpected server error occurred while rendering the bill PDF. Please try again.</p>
+          </body>
+        </html>
+      `);
+        }
+    }
+    static async downloadVerifiedPdf(req, res) {
+        return InvoiceController.streamDirectBillPdf(req, res);
+    }
+    static async verifyCreditNote(req, res) {
+        return InvoiceController.verifyBill(req, res);
+    }
+    static async verifyInvoice(req, res) {
+        return InvoiceController.verifyBill(req, res);
+    }
+}

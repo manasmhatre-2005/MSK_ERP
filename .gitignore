@@ -18,7 +18,6 @@ build/
 *.tsbuildinfo
 
 # Vercel
-.vercel/output/
 .vercel/*.local
 .vercel/node/
 .vercel/README.txt
