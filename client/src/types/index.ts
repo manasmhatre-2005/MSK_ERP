@@ -36,6 +36,45 @@ export interface DataEntryReferenceData {
   exporters: { id: string; name: string }[];
 }
 
+export interface CartingRecord {
+  id: string;
+  srNo: string;
+  srNoInt?: number;
+  jobNo: string;
+  shippingBillNo: string;
+  date: string;
+  shipper: string;
+  consignee: string;
+  cha: string;
+  packages: string;
+  weight: number;
+  weightUnit: string;
+  commodity: string;
+  partyId?: string | null;
+  party?: { id: string; legalName: string; tradeName?: string; gstin?: string } | null;
+  partyName: string;
+  agent: string;
+  remarks?: string | null;
+  status: string;
+  createdById: string;
+  createdByName: string;
+  updatedById?: string | null;
+  updatedByName?: string | null;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CartingReferenceData {
+  parties: { id: string; name: string; gstin?: string }[];
+  shippers: string[];
+  consignees: string[];
+  chas: string[];
+  agents: string[];
+  commodities: string[];
+  weightUnits: string[];
+}
+
 export interface User {
   id: string;
   email: string;

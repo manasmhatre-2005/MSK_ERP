@@ -28,6 +28,7 @@ const ReportsPage = lazy(() => import('./pages/ReportsPage').then((m) => ({ defa
 const SettingsPage = lazy(() => import('./pages/SettingsPage').then((m) => ({ default: m.SettingsPage })));
 const AuditLogPage = lazy(() => import('./pages/AuditLogPage').then((m) => ({ default: m.AuditLogPage })));
 const DataEntryModule = lazy(() => import('./pages/DataEntryModule').then((m) => ({ default: m.DataEntryModule })));
+const CartingDetailsPage = lazy(() => import('./pages/CartingDetailsPage').then((m) => ({ default: m.CartingDetailsPage })));
 
 // Heavy Modals & Print Views
 const GlobalSearchModal = lazy(() => import('./components/layout/GlobalSearchModal').then((m) => ({ default: m.GlobalSearchModal })));
@@ -124,7 +125,7 @@ const MainApp: React.FC = () => {
         if (tab === 'invoices') {
           setCurrentTab('invoices');
           setSelectedInvoiceId(null);
-        } else if (['dashboard', 'parties', 'exporters', 'jobs', 'containers', 'charges', 'payments', 'reports', 'settings', 'audit'].includes(tab)) {
+        } else if (['dashboard', 'parties', 'exporters', 'jobs', 'containers', 'carting', 'charges', 'payments', 'reports', 'settings', 'audit'].includes(tab)) {
           setCurrentTab(tab);
           setSelectedPartyId(null);
           setSelectedInvoiceId(null);
@@ -154,7 +155,7 @@ const MainApp: React.FC = () => {
       if (tab === 'invoices') {
         setCurrentTab('invoices');
         setSelectedInvoiceId(null);
-      } else if (['dashboard', 'parties', 'exporters', 'jobs', 'containers', 'charges', 'payments', 'reports', 'settings', 'audit'].includes(tab)) {
+      } else if (['dashboard', 'parties', 'exporters', 'jobs', 'containers', 'carting', 'charges', 'payments', 'reports', 'settings', 'audit'].includes(tab)) {
         setCurrentTab(tab);
         setSelectedPartyId(null);
         setSelectedInvoiceId(null);
@@ -499,6 +500,9 @@ const MainApp: React.FC = () => {
 
           {/* Containers (Admin & Ops) */}
           {currentTab === 'containers' && <ContainersPage />}
+
+          {/* Carting Details (Admin & Account Manager) */}
+          {currentTab === 'carting' && <CartingDetailsPage />}
 
           {/* Charges & Rates Master */}
           {currentTab === 'charges' && <ChargesPage />}

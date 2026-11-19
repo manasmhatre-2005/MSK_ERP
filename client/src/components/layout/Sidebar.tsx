@@ -13,6 +13,7 @@ import {
   ChevronRight,
   Home,
   X,
+  ClipboardList,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -69,6 +70,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             { id: 'exporters', label: 'Exporters Master', icon: Truck },
             { id: 'jobs', label: 'Jobs & Shipments', icon: Ship },
             { id: 'containers', label: 'Containers Operations', icon: Box },
+            { id: 'carting', label: 'Carting Details', icon: ClipboardList },
           ],
         },
         {
@@ -96,6 +98,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             { id: 'exporters', label: 'Exporters Master', icon: Truck },
             { id: 'jobs', label: 'Jobs & Shipments', icon: Ship },
             { id: 'containers', label: 'Containers Operations', icon: Box },
+            { id: 'carting', label: 'Carting Details', icon: ClipboardList },
           ],
         },
         {

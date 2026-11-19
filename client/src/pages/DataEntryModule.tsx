@@ -23,10 +23,12 @@ import {
   ArrowRight,
   ChevronRight,
   Info,
+  ClipboardList,
 } from 'lucide-react';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { DataEntryRecord, DataEntryReferenceData } from '../types/index';
+import { CartingDetailsSection } from '../components/carting/CartingDetailsSection';
 
 interface DataEntryModuleProps {
   onSignOut: () => void;
@@ -34,6 +36,7 @@ interface DataEntryModuleProps {
 
 export const DataEntryModule: React.FC<DataEntryModuleProps> = ({ onSignOut }) => {
   const { user } = useAuth();
+  const [moduleSection, setModuleSection] = useState<'carting' | 'containers'>('carting');
   const [activeTab, setActiveTab] = useState<'form' | 'records'>('form');
 
   // Reference data state
@@ -363,46 +366,84 @@ export const DataEntryModule: React.FC<DataEntryModuleProps> = ({ onSignOut }) =
           </div>
         </div>
 
-        {/* View Switcher Tabs (Only 2 Allowed Screens: New Entry & My Entries) */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex gap-2 border-t border-slate-100 bg-slate-50/50">
-          <button
-            type="button"
-            onClick={() => setActiveTab('form')}
-            className={`flex items-center gap-2 py-2.5 px-4 text-xs sm:text-sm font-bold border-b-2 transition-all cursor-pointer ${
-              activeTab === 'form'
-                ? 'border-red-600 text-red-600 bg-white shadow-xs'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <PlusCircle className="w-4 h-4" />
-            <span>New Operational Entry</span>
-          </button>
+        {/* Module Switcher Tabs (Carting Details & Container Operations) */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row sm:items-center justify-between border-t border-slate-100 bg-slate-50/70 gap-2">
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setModuleSection('carting')}
+              className={`flex items-center gap-2 py-2.5 px-4 text-xs sm:text-sm font-bold border-b-2 transition-all cursor-pointer ${
+                moduleSection === 'carting'
+                  ? 'border-red-600 text-red-600 bg-white shadow-xs'
+                  : 'border-transparent text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              <ClipboardList className="w-4 h-4" />
+              <span>Carting Details (12 Fields)</span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab('records')}
-            className={`flex items-center gap-2 py-2.5 px-4 text-xs sm:text-sm font-bold border-b-2 transition-all cursor-pointer ${
-              activeTab === 'records'
-                ? 'border-red-600 text-red-600 bg-white shadow-xs'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <List className="w-4 h-4" />
-            <span>My Entries / Entry Records</span>
-            {totalRecords > 0 && (
-              <span className="ml-1 px-1.5 py-0.5 text-[10px] bg-slate-200 text-slate-700 rounded-full font-bold">
-                {totalRecords}
-              </span>
-            )}
-          </button>
+            <button
+              type="button"
+              onClick={() => setModuleSection('containers')}
+              className={`flex items-center gap-2 py-2.5 px-4 text-xs sm:text-sm font-bold border-b-2 transition-all cursor-pointer ${
+                moduleSection === 'containers'
+                  ? 'border-red-600 text-red-600 bg-white shadow-xs'
+                  : 'border-transparent text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              <Box className="w-4 h-4" />
+              <span>Container Operations</span>
+            </button>
+          </div>
+
+          {moduleSection === 'containers' && (
+            <div className="flex items-center gap-1.5 py-1.5">
+              <button
+                type="button"
+                onClick={() => setActiveTab('form')}
+                className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                  activeTab === 'form'
+                    ? 'bg-red-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                <PlusCircle className="w-3.5 h-3.5" />
+                <span>New Operational Entry</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('records')}
+                className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                  activeTab === 'records'
+                    ? 'bg-red-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                <List className="w-3.5 h-3.5" />
+                <span>My Entries</span>
+                {totalRecords > 0 && (
+                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+                    activeTab === 'records' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+                  }`}>
+                    {totalRecords}
+                  </span>
+                )}
+              </button>
+            </div>
+          )}
         </div>
       </header>
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
-        {/* ============================================================== */}
-        {/* TAB 1: NEW DATA ENTRY FORM (ALL 8 EXACT OPERATIONAL FIELDS)   */}
-        {/* ============================================================== */}
+        {moduleSection === 'carting' ? (
+          <CartingDetailsSection embedded={true} />
+        ) : (
+          <>
+            {/* ============================================================== */}
+            {/* TAB 1: NEW DATA ENTRY FORM (ALL 8 EXACT OPERATIONAL FIELDS)   */}
+            {/* ============================================================== */}
         {activeTab === 'form' && (
           <div className="max-w-4xl mx-auto space-y-6">
             {/* Success Notification on Record Save */}
@@ -985,6 +1026,8 @@ export const DataEntryModule: React.FC<DataEntryModuleProps> = ({ onSignOut }) =
               )}
             </div>
           </div>
+        )}
+          </>
         )}
       </main>
 

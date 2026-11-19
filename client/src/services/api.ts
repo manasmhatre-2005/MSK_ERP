@@ -15,6 +15,8 @@ import {
   PartyOutstandingSummary,
   DataEntryRecord,
   DataEntryReferenceData,
+  CartingRecord,
+  CartingReferenceData,
 } from '../types/index';
 
 const API_BASE = '/api';
@@ -471,5 +473,33 @@ export const api = {
     request<{ success: boolean; message: string; deliveryDetails: any }>(`/data-entry/${id}/email`, {
       method: 'POST',
       body: JSON.stringify(data),
+    }),
+
+  // Carting Details Data Entry Module
+  getCartingReferenceData: () => request<CartingReferenceData>('/carting-details/reference-data'),
+  getNextCartingSrNo: () => request<{ nextSrNo: string; nextSeq: number }>('/carting-details/next-number'),
+  getCartingRecords: (params: Record<string, string | number> = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== '') qs.append(k, String(v));
+    });
+    return request<{ records: CartingRecord[]; totalCount: number; page: number; limit: number; totalPages: number }>(
+      `/carting-details?${qs.toString()}`
+    );
+  },
+  getCartingRecordById: (id: string) => request<CartingRecord>(`/carting-details/${id}`),
+  createCartingRecord: (data: any) =>
+    request<{ success: boolean; message: string; record: CartingRecord }>('/carting-details', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updateCartingRecord: (id: string, data: any) =>
+    request<{ success: boolean; message: string; record: CartingRecord }>(`/carting-details/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  deleteCartingRecord: (id: string) =>
+    request<{ success: boolean; message: string }>(`/carting-details/${id}`, {
+      method: 'DELETE',
     }),
 };
