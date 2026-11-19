@@ -357,8 +357,7 @@ const MainApp: React.FC = () => {
     } else if (billType === 'HT_BILL') {
       setIsHtBillFormOpen(true);
     } else if (billType === 'FORWARDING') {
-      setSelectedBillType('FORWARDING');
-      setIsInvoiceWizardOpen(true);
+      setIsForwardingBillFormOpen(true);
     } else {
       setSelectedBillType(null);
       setIsInvoiceWizardOpen(true);
@@ -374,6 +373,8 @@ const MainApp: React.FC = () => {
       setIsCreditNoteFormOpen(true);
     } else if (billType === 'HT_BILL') {
       setIsHtBillFormOpen(true);
+    } else if (billType === 'FORWARDING') {
+      setIsForwardingBillFormOpen(true);
     } else {
       setIsInvoiceWizardOpen(true);
     }
@@ -386,6 +387,8 @@ const MainApp: React.FC = () => {
       setPrintableCreditNote(inv);
     } else if (inv.billType === 'HT_BILL') {
       setPrintableHtInvoice(inv);
+    } else if (inv.billType === 'FORWARDING') {
+      setPrintableForwardingInvoice(inv);
     } else {
       setPrintableInvoice(inv);
     }
