@@ -16,6 +16,7 @@ import { SettingsController } from '../controllers/settingsController.js';
 import { SearchController } from '../controllers/searchController.js';
 import { AuditController } from '../controllers/auditController.js';
 import { DataEntryController } from '../controllers/dataEntryController.js';
+import { CartingController } from '../controllers/cartingController.js';
 const router = Router();
 // Public Auth routes
 router.post('/auth/login', AuthController.login);
@@ -55,6 +56,16 @@ router.get('/data-entry/:id', requireRole(['ADMIN', 'DATA_ENTRY']), DataEntryCon
 router.put('/data-entry/:id', requireRole(['ADMIN', 'DATA_ENTRY']), DataEntryController.update);
 router.delete('/data-entry/:id', requireRole(['ADMIN', 'DATA_ENTRY']), DataEntryController.delete);
 router.post('/data-entry/:id/email', requireRole(['ADMIN', 'DATA_ENTRY']), DataEntryController.sendEmail);
+// Carting Details Data Entry (Admin, Data Entry Operator, Account Manager)
+router.get('/carting-details/reference-data', requireRole(['ADMIN', 'DATA_ENTRY', 'ACCOUNT_MANAGER']), CartingController.getReferenceData);
+router.get('/carting-details/next-number', requireRole(['ADMIN', 'DATA_ENTRY', 'ACCOUNT_MANAGER']), CartingController.getNextSrNo);
+router.get('/carting-details/next-sr-no', requireRole(['ADMIN', 'DATA_ENTRY', 'ACCOUNT_MANAGER']), CartingController.getNextSrNo);
+router.get('/carting-details/export/csv', requireRole(['ADMIN', 'DATA_ENTRY', 'ACCOUNT_MANAGER']), CartingController.exportCsv);
+router.post('/carting-details', requireRole(['ADMIN', 'DATA_ENTRY', 'ACCOUNT_MANAGER']), CartingController.create);
+router.get('/carting-details', requireRole(['ADMIN', 'DATA_ENTRY', 'ACCOUNT_MANAGER']), CartingController.getAll);
+router.get('/carting-details/:id', requireRole(['ADMIN', 'DATA_ENTRY', 'ACCOUNT_MANAGER']), CartingController.getById);
+router.put('/carting-details/:id', requireRole(['ADMIN', 'DATA_ENTRY', 'ACCOUNT_MANAGER']), CartingController.update);
+router.delete('/carting-details/:id', requireRole(['ADMIN', 'DATA_ENTRY']), CartingController.delete);
 // Parties (Strictly restricted to Admin and Account/Billing)
 router.get('/parties', requireRole(['ADMIN', 'ACCOUNT_MANAGER', 'BILLING']), PartyController.getAll);
 router.get('/parties/:id', requireRole(['ADMIN', 'ACCOUNT_MANAGER', 'BILLING']), PartyController.getById);

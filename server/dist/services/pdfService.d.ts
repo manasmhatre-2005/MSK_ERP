@@ -25,4 +25,9 @@ export declare class PDFService {
      * Exactly matching the uploaded Reference Images 1 & 2 layout format
      */
     static generateHtBillPDF(invoice: any, settings: any): Promise<Buffer>;
+    /**
+     * Dedicated PDF Generator for Forwarding Bill matching the Excel Container Billing Format
+     * (Professional_Container_Billing_Format-2.xlsx)
+     */
+    static generateForwardingBillPDF(invoice: any, settings: any): Promise<Buffer>;
 }

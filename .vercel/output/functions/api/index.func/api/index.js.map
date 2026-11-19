@@ -1,1 +1,0 @@
-{"version":3,"file":"index.ts","sources":["C:\\MSK_Logistic_Software\\api\\index.ts"],"names":[],"mappings":"AAAA,OAAO,GAAG,MAAM,uBAAuB,CAAC;AAExC,eAAe,GAAG,CAAC","sourcesContent":["import app from '../server/dist/app.js';\n\nexport default app;\n"]}

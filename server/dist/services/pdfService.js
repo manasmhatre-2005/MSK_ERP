@@ -160,6 +160,9 @@ export class PDFService {
         if (invoice.billType === 'EMPTY_CONTAINER') {
             return PDFService.generateEmptyContainerPDF(invoice, settings);
         }
+        if (invoice.billType === 'FORWARDING') {
+            return PDFService.generateForwardingBillPDF(invoice, settings);
+        }
         // Extract templateId from options, invoice, notes tag, or default
         let templateId = 'format-1';
         if (options.templateId && ['format-1', 'format-2', 'format-3', 'format-4', 'format-5'].includes(options.templateId)) {
@@ -2031,6 +2034,362 @@ export class PDFService {
             // Bottom Page Indicator
             doc.font('Helvetica').fontSize(6).fillColor(textMuted)
                 .text('Page 1 of 1', leftX, y + signBoxH + 3, { width: contentWidth, align: 'right' });
+            // Finalize document
+            doc.end();
+        });
+    }
+    /**
+     * Dedicated PDF Generator for Forwarding Bill matching the Excel Container Billing Format
+     * (Professional_Container_Billing_Format-2.xlsx)
+     */
+    static async generateForwardingBillPDF(invoice, settings) {
+        const baseUrl = process.env.APP_URL || process.env.CLIENT_URL || 'https://logistics-rouge-omega.vercel.app';
+        const cleanBaseUrl = baseUrl.replace(/\/+$/, '');
+        const verifyUrl = invoice.verificationToken
+            ? `${cleanBaseUrl}/bills/${invoice.verificationToken}.pdf`
+            : `${cleanBaseUrl}/invoices`;
+        let qrBuffer = null;
+        try {
+            qrBuffer = await QRCode.toBuffer(verifyUrl, {
+                width: 110,
+                margin: 1,
+                color: { dark: '#0f172a', light: '#ffffff' },
+                errorCorrectionLevel: 'M',
+            });
+        }
+        catch (e) {
+            console.error('Failed to generate QR buffer for Forwarding Bill:', e);
+        }
+        return new Promise((resolve, reject) => {
+            const doc = new PDFDocument({
+                size: 'A4',
+                margin: 18,
+                compress: false,
+                info: {
+                    Title: `Forwarding Tax Invoice - ${invoice.invoiceNumber}`,
+                    Author: settings?.companyName || 'MSK LOGISTIC SOLUTION',
+                },
+            });
+            const chunks = [];
+            doc.on('data', (chunk) => chunks.push(chunk));
+            doc.on('end', () => resolve(Buffer.concat(chunks)));
+            doc.on('error', (err) => reject(err));
+            // Draw official watermark
+            doc.on('pageAdded', () => drawPageWatermark(doc));
+            drawPageWatermark(doc);
+            if (invoice.status === 'CANCELLED') {
+                doc.on('pageAdded', () => drawCancelledWatermark(doc));
+                drawCancelledWatermark(doc);
+            }
+            const leftX = 24;
+            const contentWidth = 547;
+            const rightX = leftX + contentWidth; // 571
+            const borderDark = '#0f172a';
+            const borderTable = '#475569';
+            const borderLight = '#cbd5e1';
+            const fillHeader = '#f1f5f9';
+            const textDark = '#0f172a';
+            const textMuted = '#475569';
+            let y = 22;
+            // Parse metadata from notes
+            let meta = {};
+            if (invoice.notes) {
+                try {
+                    meta = JSON.parse(invoice.notes);
+                }
+                catch {
+                    meta = {};
+                }
+            }
+            const containerNo = meta.containerNo || invoice.containers?.[0]?.containerNumber || '-';
+            const containerSize = meta.containerSize || invoice.containers?.[0]?.size || '-';
+            const jobBookingNo = meta.jobBookingNo || invoice.sbNumbers || invoice.job?.jobNumber || '-';
+            const blAwbNo = meta.blAwbNo || invoice.mblHbl || '-';
+            const shippingLine = meta.shippingLine || '-';
+            const vesselVoyage = meta.vesselVoyage || invoice.vesselVoyage || '-';
+            const cfsPort = meta.cfsPort || invoice.portOfLoading || '-';
+            const vehicleNo = meta.vehicleNo || '-';
+            const placeOfSupply = meta.placeOfSupply || (invoice.billToState ? `${invoice.billToState} (${invoice.billToStateCode || '27'})` : 'Maharashtra (27)');
+            const supplyType = meta.supplyType || (invoice.isInterState ? 'Inter-state' : 'Intra-state');
+            const reverseCharge = meta.reverseCharge || 'No';
+            const isInterState = invoice.isInterState ?? false;
+            const taxableAmount = invoice.taxableAmount ?? 0;
+            const cgstAmount = invoice.cgstAmount ?? 0;
+            const sgstAmount = invoice.sgstAmount ?? 0;
+            const igstAmount = invoice.igstAmount ?? 0;
+            const grandTotal = invoice.grandTotal ?? 0;
+            const companyName = settings?.companyName || 'MSK LOGISTIC SOLUTION';
+            const address = settings?.address || 'JNPT Township Colony, Sector - 3, Building No. B/48, Office No. 3';
+            const city = settings?.city || 'Navi Mumbai';
+            const pincode = settings?.pincode || '400702';
+            const phone = settings?.phone || '+91 8104592823';
+            const email = settings?.email || 'accounts@msklogisticsolution.com';
+            const website = settings?.website || 'www.msklogisticsolution.com';
+            const gstin = settings?.gstin || '27AXWPK4562G1ZX';
+            const pan = settings?.pan || 'AXWPK4562G';
+            const bankName = settings?.bankName || 'ICICI Bank';
+            const bankAccountNo = settings?.bankAccountNo || '574005000006';
+            const bankIfsc = settings?.bankIfsc || 'ICIC0005740';
+            const bankBranch = settings?.bankBranch || 'Dronagiri Node (Nhava Sheva)';
+            // ==========================================
+            // 1. TOP HEADER (Excel Rows 1, 2, 3)
+            // ==========================================
+            const headerBoxH = 64;
+            doc.rect(leftX, y, contentWidth, headerBoxH).stroke(borderDark);
+            // QR Code in Header (Right corner)
+            if (qrBuffer) {
+                try {
+                    doc.image(qrBuffer, rightX - 58, y + 4, { fit: [48, 48], align: 'center' });
+                    doc.font('Helvetica-Bold').fontSize(5).fillColor(textDark)
+                        .text('SCAN TO VERIFY', rightX - 60, y + 54, { width: 52, align: 'center' });
+                }
+                catch (e) {
+                    // ignore
+                }
+            }
+            // Company Info (Center)
+            const titleW = contentWidth - 75;
+            doc.font('Helvetica-Bold').fontSize(14).fillColor(textDark)
+                .text(companyName, leftX + 10, y + 6, { width: titleW, align: 'center' });
+            doc.font('Helvetica').fontSize(7.5).fillColor(textMuted)
+                .text(`${address}, ${city} - ${pincode} | Phone: ${phone} | Email: ${email} | Web: ${website}`, leftX + 10, y + 25, { width: titleW, align: 'center' });
+            doc.font('Helvetica-Bold').fontSize(8).fillColor(textDark)
+                .text(`GSTIN: ${gstin}     PAN: ${pan}`, leftX + 10, y + 42, { width: titleW, align: 'center' });
+            y += headerBoxH;
+            // ==========================================
+            // 2. TITLE BAR: TAX INVOICE (Excel Row 5)
+            // ==========================================
+            const bannerH = 16;
+            doc.rect(leftX, y, contentWidth, bannerH).fillAndStroke('#0f172a', borderDark);
+            doc.font('Helvetica-Bold').fontSize(9).fillColor('#ffffff')
+                .text('TAX INVOICE', leftX, y + 3.5, { width: contentWidth, align: 'center' });
+            y += bannerH;
+            // ==========================================
+            // 3. INVOICE METADATA GRID (Excel Rows 7 & 8)
+            // ==========================================
+            const metaRowH = 14;
+            // Row 1
+            doc.rect(leftX, y, contentWidth, metaRowH).fillAndStroke(fillHeader, borderDark);
+            doc.font('Helvetica-Bold').fontSize(7).fillColor(textDark).text('Invoice No.', leftX + 6, y + 3.5);
+            doc.font('Helvetica-Bold').fontSize(7).fillColor(textDark).text(invoice.invoiceNumber || '-', leftX + 65, y + 3.5, { width: 120 });
+            doc.font('Helvetica-Bold').fontSize(7).text('Invoice Date', leftX + 195, y + 3.5);
+            doc.font('Helvetica').fontSize(7).text(formatDate(invoice.invoiceDate), leftX + 255, y + 3.5, { width: 90 });
+            doc.font('Helvetica-Bold').fontSize(7).text('Due Date', leftX + 370, y + 3.5);
+            doc.font('Helvetica').fontSize(7).text(formatDate(invoice.dueDate), leftX + 425, y + 3.5, { width: 90 });
+            y += metaRowH;
+            // Row 2
+            doc.rect(leftX, y, contentWidth, metaRowH).stroke(borderDark);
+            doc.font('Helvetica-Bold').fontSize(7).fillColor(textDark).text('Place of Supply', leftX + 6, y + 3.5);
+            doc.font('Helvetica').fontSize(7).fillColor(textDark).text(placeOfSupply, leftX + 75, y + 3.5, { width: 110 });
+            doc.font('Helvetica-Bold').fontSize(7).text('Supply Type', leftX + 195, y + 3.5);
+            doc.font('Helvetica').fontSize(7).text(supplyType, leftX + 255, y + 3.5, { width: 90 });
+            doc.font('Helvetica-Bold').fontSize(7).text('Reverse Charge', leftX + 370, y + 3.5);
+            doc.font('Helvetica').fontSize(7).text(reverseCharge, leftX + 445, y + 3.5, { width: 60 });
+            y += metaRowH;
+            // ==========================================
+            // 4. TWO-COLUMN BOX: BILL TO & CONTAINER / SHIPMENT DETAILS (Excel Rows 10 - 18)
+            // ==========================================
+            const halfW = contentWidth / 2; // 273.5
+            const midX = leftX + halfW;
+            const colHeaderH = 14;
+            const boxContentH = 88;
+            // Headers for columns
+            doc.rect(leftX, y, halfW, colHeaderH).fillAndStroke(fillHeader, borderDark);
+            doc.rect(midX, y, halfW, colHeaderH).fillAndStroke(fillHeader, borderDark);
+            doc.font('Helvetica-Bold').fontSize(7.5).fillColor(textDark)
+                .text('BILL TO', leftX + 8, y + 3.5, { width: halfW - 16 });
+            doc.font('Helvetica-Bold').fontSize(7.5).fillColor(textDark)
+                .text('CONTAINER / SHIPMENT DETAILS', midX + 8, y + 3.5, { width: halfW - 16 });
+            y += colHeaderH;
+            // Left Box: BILL TO
+            doc.rect(leftX, y, halfW, boxContentH).stroke(borderDark);
+            doc.font('Helvetica-Bold').fontSize(7).fillColor(textDark).text('Customer Name:', leftX + 6, y + 5);
+            doc.font('Helvetica-Bold').fontSize(7).text(invoice.billToName || '-', leftX + 80, y + 5, { width: halfW - 88 });
+            doc.font('Helvetica-Bold').fontSize(7).text('Billing Address:', leftX + 6, y + 18);
+            doc.font('Helvetica').fontSize(6.5).text(invoice.billToAddress || '-', leftX + 80, y + 18, { width: halfW - 88, height: 26 });
+            doc.font('Helvetica-Bold').fontSize(7).text('Customer GSTIN:', leftX + 6, y + 52);
+            doc.font('Helvetica-Bold').fontSize(7).text(invoice.billToGstin || '-', leftX + 80, y + 52, { width: halfW - 88 });
+            doc.font('Helvetica-Bold').fontSize(7).text('State / State Code:', leftX + 6, y + 68);
+            doc.font('Helvetica').fontSize(7).text(`${invoice.billToState || 'Maharashtra'} / ${invoice.billToStateCode || '27'}`, leftX + 80, y + 68, { width: halfW - 88 });
+            // Right Box: CONTAINER / SHIPMENT DETAILS
+            doc.rect(midX, y, halfW, boxContentH).stroke(borderDark);
+            doc.font('Helvetica-Bold').fontSize(6.8).fillColor(textDark).text('Container No.:', midX + 6, y + 4);
+            doc.font('Helvetica-Bold').fontSize(7).text(containerNo, midX + 85, y + 4, { width: halfW - 92 });
+            doc.font('Helvetica-Bold').fontSize(6.8).text('Size:', midX + 6, y + 14);
+            doc.font('Helvetica').fontSize(6.8).text(containerSize, midX + 85, y + 14, { width: halfW - 92 });
+            doc.font('Helvetica-Bold').fontSize(6.8).text('Job / Booking No.:', midX + 6, y + 24);
+            doc.font('Helvetica').fontSize(6.8).text(jobBookingNo, midX + 85, y + 24, { width: halfW - 92 });
+            doc.font('Helvetica-Bold').fontSize(6.8).text('BL / AWB No.:', midX + 6, y + 34);
+            doc.font('Helvetica').fontSize(6.8).text(blAwbNo, midX + 85, y + 34, { width: halfW - 92 });
+            doc.font('Helvetica-Bold').fontSize(6.8).text('Shipping Line:', midX + 6, y + 44);
+            doc.font('Helvetica').fontSize(6.8).text(shippingLine, midX + 85, y + 44, { width: halfW - 92 });
+            doc.font('Helvetica-Bold').fontSize(6.8).text('Vessel / Voyage:', midX + 6, y + 54);
+            doc.font('Helvetica').fontSize(6.8).text(vesselVoyage, midX + 85, y + 54, { width: halfW - 92 });
+            doc.font('Helvetica-Bold').fontSize(6.8).text('CFS / Port:', midX + 6, y + 64);
+            doc.font('Helvetica').fontSize(6.8).text(cfsPort, midX + 85, y + 64, { width: halfW - 92 });
+            doc.font('Helvetica-Bold').fontSize(6.8).text('Vehicle No.:', midX + 6, y + 74);
+            doc.font('Helvetica').fontSize(6.8).text(vehicleNo, midX + 85, y + 74, { width: halfW - 92 });
+            y += boxContentH;
+            // ==========================================
+            // 5. SERVICE / CHARGES DETAILS TITLE (Excel Row 20)
+            // ==========================================
+            const secH = 14;
+            doc.rect(leftX, y, contentWidth, secH).fillAndStroke('#1e293b', borderDark);
+            doc.font('Helvetica-Bold').fontSize(7.5).fillColor('#ffffff')
+                .text('SERVICE / CHARGES DETAILS', leftX + 8, y + 3.5, { width: contentWidth - 16 });
+            y += secH;
+            // ==========================================
+            // 6. 8-COLUMN CHARGES TABLE (Excel Rows 21 - 33)
+            // ==========================================
+            // Columns: Sr. No. (28) | Description (195) | SAC (44) | Qty (30) | Rate (54) | Taxable (66) | GST Rate (46) | GST Amount (84) = 547
+            const colW = [28, 195, 44, 30, 54, 66, 46, 84];
+            const tableHeaderH = 14;
+            doc.rect(leftX, y, contentWidth, tableHeaderH).fillAndStroke(fillHeader, borderDark);
+            let curX = leftX;
+            doc.font('Helvetica-Bold').fontSize(6.5).fillColor(textDark);
+            doc.text('Sr. No.', curX, y + 3.5, { width: colW[0], align: 'center' });
+            curX += colW[0];
+            doc.text('Description of Service', curX + 4, y + 3.5, { width: colW[1] - 4, align: 'left' });
+            curX += colW[1];
+            doc.text('SAC Code', curX, y + 3.5, { width: colW[2], align: 'center' });
+            curX += colW[2];
+            doc.text('Qty', curX, y + 3.5, { width: colW[3], align: 'right' });
+            curX += colW[3];
+            doc.text('Rate (INR)', curX, y + 3.5, { width: colW[4] - 4, align: 'right' });
+            curX += colW[4];
+            doc.text('Taxable (INR)', curX, y + 3.5, { width: colW[5] - 4, align: 'right' });
+            curX += colW[5];
+            doc.text('GST Rate', curX, y + 3.5, { width: colW[6], align: 'center' });
+            curX += colW[6];
+            doc.text('GST Amount (INR)', curX, y + 3.5, { width: colW[7] - 6, align: 'right' });
+            y += tableHeaderH;
+            // Items rows
+            const items = invoice.items && invoice.items.length > 0 ? invoice.items : [];
+            const rowHeight = 13.5;
+            items.forEach((item, idx) => {
+                const taxableVal = item.taxableValue ?? item.amount ?? (item.quantity * item.rate);
+                const gstPct = item.igstRate || (item.cgstRate + item.sgstRate) || 18;
+                const gstVal = item.igstAmount || ((item.cgstAmount || 0) + (item.sgstAmount || 0)) || Math.round(taxableVal * (gstPct / 100) * 100) / 100;
+                doc.rect(leftX, y, contentWidth, rowHeight).stroke(borderLight);
+                let rx = leftX;
+                doc.font('Helvetica').fontSize(6.5).fillColor(textDark);
+                // 1. Sr. No.
+                doc.text(String(item.srNo || idx + 1), rx, y + 3, { width: colW[0], align: 'center' });
+                rx += colW[0];
+                // 2. Description
+                doc.font('Helvetica-Bold').fontSize(6.5)
+                    .text(item.description || '-', rx + 4, y + 3, { width: colW[1] - 6, height: 10 });
+                rx += colW[1];
+                // 3. SAC Code
+                doc.font('Helvetica').fontSize(6.5)
+                    .text(item.hsnSacCode || '996719', rx, y + 3, { width: colW[2], align: 'center' });
+                rx += colW[2];
+                // 4. Qty
+                doc.text(String(item.quantity || 1), rx, y + 3, { width: colW[3], align: 'right' });
+                rx += colW[3];
+                // 5. Rate
+                doc.text(formatCurrency(item.rate, 'INR'), rx, y + 3, { width: colW[4] - 4, align: 'right' });
+                rx += colW[4];
+                // 6. Taxable Amount
+                doc.font('Helvetica-Bold')
+                    .text(formatCurrency(taxableVal, 'INR'), rx, y + 3, { width: colW[5] - 4, align: 'right' });
+                rx += colW[5];
+                // 7. GST Rate
+                doc.font('Helvetica')
+                    .text(`${gstPct}%`, rx, y + 3, { width: colW[6], align: 'center' });
+                rx += colW[6];
+                // 8. GST Amount
+                doc.font('Helvetica-Bold')
+                    .text(formatCurrency(gstVal, 'INR'), rx, y + 3, { width: colW[7] - 6, align: 'right' });
+                y += rowHeight;
+            });
+            // Bottom border for table
+            doc.rect(leftX, y, contentWidth, 0.5).stroke(borderDark);
+            y += 2;
+            // ==========================================
+            // 7. TOTALS BOX (Excel Rows 34 - 38)
+            // ==========================================
+            const totalsW = 210;
+            const totalsX = rightX - totalsW;
+            const totRowH = 13;
+            // Taxable Value
+            doc.rect(totalsX, y, totalsW, totRowH).fillAndStroke(fillHeader, borderDark);
+            doc.font('Helvetica-Bold').fontSize(7).fillColor(textDark)
+                .text('Total Taxable Value', totalsX + 8, y + 3);
+            doc.font('Helvetica-Bold').fontSize(7.5)
+                .text(`INR ${formatCurrency(taxableAmount, 'INR')}`, totalsX + 90, y + 3, { width: totalsW - 98, align: 'right' });
+            y += totRowH;
+            if (!isInterState) {
+                // CGST
+                doc.rect(totalsX, y, totalsW, totRowH).stroke(borderDark);
+                doc.font('Helvetica').fontSize(7).fillColor(textDark)
+                    .text('CGST', totalsX + 8, y + 3);
+                doc.text(`INR ${formatCurrency(cgstAmount, 'INR')}`, totalsX + 90, y + 3, { width: totalsW - 98, align: 'right' });
+                y += totRowH;
+                // SGST
+                doc.rect(totalsX, y, totalsW, totRowH).stroke(borderDark);
+                doc.font('Helvetica').fontSize(7).fillColor(textDark)
+                    .text('SGST', totalsX + 8, y + 3);
+                doc.text(`INR ${formatCurrency(sgstAmount, 'INR')}`, totalsX + 90, y + 3, { width: totalsW - 98, align: 'right' });
+                y += totRowH;
+            }
+            else {
+                // IGST
+                doc.rect(totalsX, y, totalsW, totRowH).stroke(borderDark);
+                doc.font('Helvetica').fontSize(7).fillColor(textDark)
+                    .text('IGST', totalsX + 8, y + 3);
+                doc.text(`INR ${formatCurrency(igstAmount, 'INR')}`, totalsX + 90, y + 3, { width: totalsW - 98, align: 'right' });
+                y += totRowH;
+            }
+            // Grand Total
+            const gtH = 16;
+            doc.rect(totalsX, y, totalsW, gtH).fillAndStroke('#0f172a', borderDark);
+            doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#ffffff')
+                .text('Grand Total', totalsX + 8, y + 3.5);
+            doc.font('Helvetica-Bold').fontSize(9).fillColor('#ffffff')
+                .text(`INR ${formatCurrency(grandTotal, 'INR')}`, totalsX + 90, y + 3.5, { width: totalsW - 98, align: 'right' });
+            y += gtH + 4;
+            // ==========================================
+            // 8. AMOUNT IN WORDS (Excel Row 40)
+            // ==========================================
+            const wordsH = 14;
+            const amountInWordsStr = (invoice.amountInWords || 'INR ZERO ONLY').toUpperCase();
+            doc.rect(leftX, y, contentWidth, wordsH).fillAndStroke(fillHeader, borderDark);
+            doc.font('Helvetica-Bold').fontSize(6.8).fillColor(textDark)
+                .text('Amount in Words:', leftX + 6, y + 3.5, { width: 75 });
+            doc.font('Helvetica-Bold').fontSize(6.8).fillColor(textDark)
+                .text(amountInWordsStr, leftX + 82, y + 3.5, { width: contentWidth - 90 });
+            y += wordsH + 4;
+            // ==========================================
+            // 9. BANK DETAILS (Excel Row 42)
+            // ==========================================
+            const bankH = 15;
+            doc.rect(leftX, y, contentWidth, bankH).stroke(borderDark);
+            doc.font('Helvetica-Bold').fontSize(6.5).fillColor(textDark)
+                .text(`Bank Name: ${bankName}     |     A/C No.: ${bankAccountNo}     |     IFSC: ${bankIfsc}     |     Branch: ${bankBranch}`, leftX + 6, y + 4, { width: contentWidth - 12, align: 'center' });
+            y += bankH + 4;
+            // ==========================================
+            // 10. SIGNATURES (Excel Row 44)
+            // ==========================================
+            const signH = 46;
+            doc.rect(leftX, y, contentWidth, signH).stroke(borderDark);
+            // Left: Customer Signature / Seal
+            doc.moveTo(leftX + 20, y + 34).lineTo(leftX + 160, y + 34).stroke(borderLight);
+            doc.font('Helvetica-Bold').fontSize(7).fillColor(textDark)
+                .text('Customer Signature / Seal', leftX + 20, y + 36, { width: 140, align: 'center' });
+            // Right: For Company | Authorized Signatory
+            const authX = rightX - 220;
+            doc.font('Helvetica-Bold').fontSize(7).fillColor(textDark)
+                .text(`For ${companyName}`, authX, y + 6, { width: 210, align: 'center' });
+            doc.moveTo(authX + 35, y + 34).lineTo(authX + 175, y + 34).stroke(borderLight);
+            doc.font('Helvetica-Bold').fontSize(7).fillColor(textDark)
+                .text('Authorized Signatory', authX, y + 36, { width: 210, align: 'center' });
+            y += signH + 4;
+            // ==========================================
+            // 11. DECLARATION (Excel Row 46)
+            // ==========================================
+            doc.font('Helvetica-Oblique').fontSize(6.5).fillColor(textMuted)
+                .text('Declaration: We declare that this invoice shows the actual price of the services described and that all particulars are true and correct.', leftX, y, { width: contentWidth, align: 'center' });
             // Finalize document
             doc.end();
         });
