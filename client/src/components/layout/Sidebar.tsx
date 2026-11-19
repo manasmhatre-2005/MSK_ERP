@@ -33,9 +33,89 @@ interface NavItem {
 
 interface NavGroup {
   id: string;
-  label?: string;
+  label: string;
   items: NavItem[];
 }
+
+/**
+ * Subtle decorative laurel branch vector graphics flanking the ISO 9001:2015 certification
+ */
+const LaurelLeft: React.FC = () => (
+  <svg
+    className="w-3.5 h-4.5 text-[#3794DC] shrink-0"
+    viewBox="0 0 16 22"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    aria-hidden="true"
+  >
+    <path
+      d="M13 19C9.5 17.5 5 13.5 5 3"
+      stroke="#3794DC"
+      strokeWidth="1.2"
+      strokeLinecap="round"
+    />
+    <path
+      d="M5 3.5C2.5 3.5 1.5 5 2.5 6.5C4 6 4.8 4.5 5 3.5Z"
+      fill="#3794DC"
+    />
+    <path
+      d="M5.5 7.5C3 7.5 2 9 3 10.5C4.5 10 5.3 8.5 5.5 7.5Z"
+      fill="#3794DC"
+    />
+    <path
+      d="M6.5 11.5C4 11.5 3 13 4 14.5C5.5 14 6.3 12.5 6.5 11.5Z"
+      fill="#3794DC"
+    />
+    <path
+      d="M8.5 15.5C6 15.5 5.2 17 6.2 18.2C7.8 17.8 8.4 16.5 8.5 15.5Z"
+      fill="#3794DC"
+    />
+  </svg>
+);
+
+const LaurelRight: React.FC = () => (
+  <svg
+    className="w-3.5 h-4.5 text-[#3794DC] shrink-0"
+    viewBox="0 0 16 22"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    aria-hidden="true"
+  >
+    <path
+      d="M3 19C6.5 17.5 11 13.5 11 3"
+      stroke="#3794DC"
+      strokeWidth="1.2"
+      strokeLinecap="round"
+    />
+    <path
+      d="M11 3.5C13.5 3.5 14.5 5 13.5 6.5C12 6 11.2 4.5 11 3.5Z"
+      fill="#3794DC"
+    />
+    <path
+      d="M10.5 7.5C13 7.5 14 9 13 10.5C11.5 10 10.7 8.5 10.5 7.5Z"
+      fill="#3794DC"
+    />
+    <path
+      d="M9.5 11.5C12 11.5 13 13 12 14.5C10.5 14 9.7 12.5 9.5 11.5Z"
+      fill="#3794DC"
+    />
+    <path
+      d="M7.5 15.5C10 15.5 10.8 17 9.8 18.2C8.2 17.8 7.6 16.5 7.5 15.5Z"
+      fill="#3794DC"
+    />
+  </svg>
+);
+
+/**
+ * Dynamic extraction of initials from user name
+ */
+const getInitials = (name?: string): string => {
+  if (!name) return 'MS';
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return 'MS';
+  if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+};
 
 export const Sidebar: React.FC<SidebarProps> = ({
   currentTab,
@@ -59,11 +139,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
-  // Structured navigation groups with subtle separators
+  // Structured 3-section navigation menu as specified
   const navGroups: NavGroup[] = isAdmin
     ? [
         {
           id: 'operations',
+          label: 'OPERATIONS',
           items: [
             { id: 'dashboard', label: 'Dashboard', icon: Home },
             { id: 'parties', label: 'Parties Master', icon: Users },
@@ -75,6 +156,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         },
         {
           id: 'financial',
+          label: 'FINANCIAL',
           items: [
             { id: 'charges', label: 'Charges & Rates', icon: BadgePercent },
             { id: 'invoices', label: 'Invoices & Billing', icon: FileText },
@@ -83,6 +165,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         },
         {
           id: 'admin',
+          label: 'ADMINISTRATION',
           items: [
             { id: 'users', label: 'User Management', icon: Users },
             { id: 'settings', label: 'Company Settings', icon: Settings },
@@ -92,6 +175,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     : [
         {
           id: 'operations',
+          label: 'OPERATIONS',
           items: [
             { id: 'dashboard', label: 'Dashboard', icon: Home },
             { id: 'parties', label: 'Parties Master', icon: Users },
@@ -103,6 +187,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         },
         {
           id: 'financial',
+          label: 'FINANCIAL',
           items: [
             { id: 'charges', label: 'Charges & Rates', icon: BadgePercent },
             { id: 'invoices', label: 'Invoices & Billing', icon: FileText },
@@ -110,6 +195,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
           ],
         },
       ];
+
+  const userInitials = getInitials(user?.name);
+  const userRoleDisplay =
+    user?.role === 'ACCOUNT_MANAGER'
+      ? 'Account Manager'
+      : user?.role === 'ADMIN'
+      ? 'ADMIN'
+      : (user?.role || 'ADMIN');
 
   return (
     <>
@@ -122,13 +215,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
         />
       )}
 
-      {/* Sidebar Drawer: Sophisticated Navy-to-Steel-Blue Gradient Panel */}
+      {/* Sidebar Drawer: Premium Dark Navy-to-Steel Logistics Navigation Panel */}
       <aside
-        className={`fixed lg:static inset-y-0 left-0 z-50 w-[265px] max-w-[85vw] text-white border-r border-[#1D5278]/50 flex flex-col h-screen select-none shrink-0 transition-transform duration-300 ease-in-out overflow-hidden shadow-2xl lg:shadow-[4px_0_24px_rgba(11,41,69,0.35)] ${
+        className={`fixed lg:static inset-y-0 left-0 z-50 w-[280px] lg:w-[290px] xl:w-[300px] max-w-[85vw] text-[#F7FAFF] border-r border-[rgba(55,148,220,0.30)] flex flex-col h-screen select-none shrink-0 transition-transform duration-300 ease-in-out overflow-hidden shadow-2xl lg:shadow-[4px_0_24px_rgba(3,26,53,0.50)] ${
           isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
         style={{
-          background: 'linear-gradient(180deg, #0B2945 0%, #103859 38%, #14446C 70%, #1D5278 100%)',
+          background: 'linear-gradient(180deg, #031A35 0%, #06264A 50%, #031A35 100%)',
         }}
         aria-label="Sidebar Navigation"
       >
@@ -136,229 +229,274 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <button
           type="button"
           onClick={onClose}
-          className="lg:hidden absolute top-3.5 right-3.5 z-20 w-9 h-9 rounded-xl bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors cursor-pointer border border-white/20 shadow-sm"
+          className="lg:hidden absolute top-3.5 right-3.5 z-20 w-8 h-8 rounded-lg bg-[#06264A] hover:bg-[#0B3764] text-[#D8E9FF] hover:text-white flex items-center justify-center transition-colors cursor-pointer border border-[rgba(55,148,220,0.40)] shadow-sm"
           aria-label="Close navigation menu"
           title="Close Navigation"
         >
-          <X className="w-5 h-5" />
+          <X className="w-4 h-4" />
         </button>
 
-        {/* Background Logistics Vector Illustration (8–15% Opacity behind navigation) */}
+        {/* Background Logistics Vector Artwork (Layered at bottom in background) */}
         <svg
-          className="absolute bottom-0 left-0 right-0 w-full h-72 pointer-events-none z-0 opacity-12"
-          viewBox="0 0 265 240"
+          className="absolute bottom-0 left-0 right-0 w-full h-80 pointer-events-none z-0 opacity-14"
+          viewBox="0 0 300 260"
           fill="none"
           preserveAspectRatio="xMidYMax slice"
           aria-hidden="true"
         >
           <defs>
-            <linearGradient id="shipGrad" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stopColor="#7DB8DC" stopOpacity="0.4" />
-              <stop offset="100%" stopColor="#1D5278" stopOpacity="0.1" />
+            <linearGradient id="sidebarShipGrad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="#3794DC" stopOpacity="0.45" />
+              <stop offset="100%" stopColor="#0B3764" stopOpacity="0.10" />
             </linearGradient>
+            <radialGradient id="nodeGlow" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="#3794DC" stopOpacity="0.9" />
+              <stop offset="100%" stopColor="#3794DC" stopOpacity="0" />
+            </radialGradient>
           </defs>
 
-          {/* Global Logistics Dotted Route Arcs */}
+          {/* Dotted Global Shipping Route Paths */}
           <path
-            d="M 10 90 Q 90 20 200 60 T 260 40"
-            stroke="#7DB8DC"
+            d="M 15 100 Q 100 25 210 65 T 285 45"
+            stroke="#3794DC"
             strokeWidth="1.2"
             strokeDasharray="4 4"
           />
           <path
-            d="M 40 130 Q 140 70 250 110"
-            stroke="#7DB8DC"
+            d="M 45 140 Q 155 75 275 115"
+            stroke="#3794DC"
             strokeWidth="1"
             strokeDasharray="3 3"
           />
-          <circle cx="200" cy="60" r="3" fill="#7DB8DC" />
-          <circle cx="90" cy="45" r="2.5" fill="#7DB8DC" />
-          <circle cx="250" cy="110" r="2.5" fill="#7DB8DC" />
+
+          {/* Glowing Logistics Route Nodes */}
+          <circle cx="210" cy="65" r="5" fill="url(#nodeGlow)" />
+          <circle cx="210" cy="65" r="2.5" fill="#D8E9FF" />
+          <circle cx="100" cy="50" r="4.5" fill="url(#nodeGlow)" />
+          <circle cx="100" cy="50" r="2" fill="#D8E9FF" />
+          <circle cx="275" cy="115" r="4.5" fill="url(#nodeGlow)" />
+          <circle cx="275" cy="115" r="2" fill="#D8E9FF" />
 
           {/* Port Terminal Dock Line */}
           <path
-            d="M 0 200 L 265 200 L 265 240 L 0 240 Z"
-            fill="#1D5278"
-            fillOpacity="0.3"
+            d="M 0 215 L 300 215 L 300 260 L 0 260 Z"
+            fill="#06264A"
+            fillOpacity="0.4"
           />
-          <line x1="0" y1="200" x2="265" y2="200" stroke="#7DB8DC" strokeWidth="1.5" />
+          <line x1="0" y1="215" x2="300" y2="215" stroke="#3794DC" strokeWidth="1.5" />
 
-          {/* Container Ship Hull Silhouette */}
+          {/* Container Cargo Ship Hull Outline */}
           <path
-            d="M 15 200 L 40 180 L 170 180 L 195 200 Z"
-            fill="url(#shipGrad)"
-            stroke="#7DB8DC"
-            strokeWidth="1.2"
+            d="M 20 215 L 48 192 L 195 192 L 222 215 Z"
+            fill="url(#sidebarShipGrad)"
+            stroke="#3794DC"
+            strokeWidth="1.3"
           />
-          {/* Ship Bridge / Superstructure */}
-          <rect x="145" y="155" width="22" height="25" fill="#1D5278" stroke="#7DB8DC" strokeWidth="1" rx="1" />
-          <line x1="145" y1="165" x2="167" y2="165" stroke="#7DB8DC" strokeWidth="0.8" />
-          <line x1="156" y1="145" x2="156" y2="155" stroke="#7DB8DC" strokeWidth="1.5" />
+          {/* Bridge / Superstructure */}
+          <rect x="165" y="165" width="26" height="27" fill="#0B3764" stroke="#3794DC" strokeWidth="1" rx="1" />
+          <line x1="165" y1="175" x2="191" y2="175" stroke="#3794DC" strokeWidth="0.8" />
+          <line x1="178" y1="154" x2="178" y2="165" stroke="#3794DC" strokeWidth="1.4" />
 
-          {/* Stacked Containers on Deck */}
-          <g stroke="#7DB8DC" strokeWidth="1" fill="#1D5278" fillOpacity="0.5">
-            <rect x="45" y="168" width="22" height="12" rx="0.5" />
-            <rect x="69" y="168" width="22" height="12" rx="0.5" />
-            <rect x="93" y="168" width="22" height="12" rx="0.5" />
-            <rect x="117" y="168" width="22" height="12" rx="0.5" />
-            <rect x="56" y="155" width="22" height="12" rx="0.5" />
-            <rect x="80" y="155" width="22" height="12" rx="0.5" />
-            <rect x="104" y="155" width="22" height="12" rx="0.5" />
+          {/* Minimal Container-Stack Outline Line Art */}
+          <g stroke="#3794DC" strokeWidth="1" fill="#06264A" fillOpacity="0.6">
+            <rect x="52" y="179" width="25" height="13" rx="0.5" />
+            <rect x="79" y="179" width="25" height="13" rx="0.5" />
+            <rect x="106" y="179" width="25" height="13" rx="0.5" />
+            <rect x="133" y="179" width="25" height="13" rx="0.5" />
+            <rect x="65" y="165" width="25" height="13" rx="0.5" />
+            <rect x="92" y="165" width="25" height="13" rx="0.5" />
+            <rect x="119" y="165" width="25" height="13" rx="0.5" />
           </g>
 
-          {/* Port STS Gantry Crane 1 (Left) */}
-          <g stroke="#7DB8DC" strokeWidth="1.4" strokeLinecap="round">
-            <line x1="20" y1="200" x2="42" y2="110" />
-            <line x1="55" y1="200" x2="42" y2="110" />
-            <line x1="26" y1="170" x2="50" y2="170" strokeWidth="1" />
-            <line x1="32" y1="140" x2="45" y2="140" strokeWidth="1" />
-            <line x1="10" y1="110" x2="85" y2="110" strokeWidth="1.8" />
-            <line x1="10" y1="106" x2="85" y2="106" strokeWidth="0.8" strokeDasharray="2 2" />
-            <line x1="28" y1="110" x2="42" y2="80" />
-            <line x1="56" y1="110" x2="42" y2="80" />
-            <line x1="15" y1="110" x2="42" y2="80" strokeWidth="0.8" />
-            <line x1="80" y1="110" x2="42" y2="80" strokeWidth="0.8" />
-            <line x1="65" y1="110" x2="65" y2="135" strokeWidth="1" strokeDasharray="1 1" />
-            <rect x="60" y="135" width="10" height="5" fill="#7DB8DC" stroke="none" />
+          {/* Port STS Gantry Crane (Left) */}
+          <g stroke="#3794DC" strokeWidth="1.3" strokeLinecap="round">
+            <line x1="25" y1="215" x2="50" y2="115" />
+            <line x1="65" y1="215" x2="50" y2="115" />
+            <line x1="32" y1="182" x2="59" y2="182" strokeWidth="0.9" />
+            <line x1="39" y1="149" x2="54" y2="149" strokeWidth="0.9" />
+            <line x1="15" y1="115" x2="98" y2="115" strokeWidth="1.8" />
+            <line x1="15" y1="111" x2="98" y2="111" strokeWidth="0.8" strokeDasharray="2 2" />
+            <line x1="35" y1="115" x2="50" y2="82" />
+            <line x1="65" y1="115" x2="50" y2="82" />
+            <line x1="20" y1="115" x2="50" y2="82" strokeWidth="0.8" />
+            <line x1="92" y1="115" x2="50" y2="82" strokeWidth="0.8" />
+            <line x1="75" y1="115" x2="75" y2="142" strokeWidth="1" strokeDasharray="1 1" />
+            <rect x="70" y="142" width="10" height="5" fill="#3794DC" stroke="none" />
           </g>
 
-          {/* Port Gantry Crane 2 (Right) */}
-          <g stroke="#7DB8DC" strokeWidth="1.2" strokeLinecap="round" opacity="0.8">
-            <line x1="190" y1="200" x2="210" y2="120" />
-            <line x1="225" y1="200" x2="210" y2="120" />
-            <line x1="180" y1="120" x2="250" y2="120" strokeWidth="1.5" />
-            <line x1="198" y1="120" x2="210" y2="95" />
-            <line x1="222" y1="120" x2="210" y2="95" />
-            <line x1="185" y1="120" x2="210" y2="95" strokeWidth="0.7" />
-            <line x1="245" y1="120" x2="210" y2="95" strokeWidth="0.7" />
+          {/* Port Gantry Crane (Right) */}
+          <g stroke="#3794DC" strokeWidth="1.1" strokeLinecap="round" opacity="0.85">
+            <line x1="215" y1="215" x2="238" y2="125" />
+            <line x1="255" y1="215" x2="238" y2="125" />
+            <line x1="205" y1="125" x2="285" y2="125" strokeWidth="1.5" />
+            <line x1="225" y1="125" x2="238" y2="98" />
+            <line x1="251" y1="125" x2="238" y2="98" />
           </g>
 
-          {/* Subtle Waterline Waves */}
+          {/* Water Surface Lines */}
           <path
-            d="M 0 205 Q 30 203 60 205 T 120 205 T 180 205 T 240 205 T 265 205"
-            stroke="#7DB8DC"
+            d="M 0 222 Q 35 220 70 222 T 140 222 T 210 222 T 280 222"
+            stroke="#3794DC"
             strokeWidth="0.8"
-            strokeDasharray="6 3"
-          />
-          <path
-            d="M 10 215 Q 40 213 70 215 T 130 215 T 190 215 T 250 215"
-            stroke="#7DB8DC"
-            strokeWidth="0.6"
-            strokeDasharray="4 4"
+            strokeDasharray="6 4"
           />
         </svg>
 
-        {/* Brand Header — Official MSK Logistic Solution Logo in White Rounded Rectangle */}
-        <div className="relative z-10 px-3.5 pt-3.5 pb-2 shrink-0">
-          <div className="bg-white rounded-2xl px-2.5 py-2 shadow-md shadow-[#0B2945]/30 border border-white/20 flex items-center justify-center overflow-hidden h-[114px]">
+        {/* Top Branding Section */}
+        <div className="relative z-10 px-3.5 pt-3 pb-2 shrink-0">
+          {/* Official MSK Logistic Solution Logo Container */}
+          <div className="bg-white rounded-xl p-2 shadow-md shadow-[#031A35]/60 border border-white/30 flex items-center justify-center overflow-hidden h-[72px]">
             <img
               src="/images/msk-logo.png"
-              alt="MSK LOGISTIC SOLUTION - Beyond logistics We Deliver Trust"
-              className="w-full h-full object-contain object-center scale-[1.12] block select-none"
+              alt="MSK LOGISTIC SOLUTION"
+              className="w-full h-full object-contain object-center scale-[1.04] block select-none"
               loading="eager"
-              decoding="async"
             />
           </div>
 
-          {/* Status Pills: [ ADMIN PORTAL ] & ● ISO 9001:2015 */}
-          <div className="flex flex-col items-center justify-center text-center pt-2.5 space-y-1.5">
-            <div className="flex items-center justify-center">
+          {/* Company Tagline: "Beyond logistics we Deliver Trust™" */}
+          <p className="text-[10.5px] font-medium tracking-tight text-center mt-2 select-none">
+            <span className="text-[#A9C3DF]">Beyond logistics we </span>
+            <span className="text-[#ED171F] font-bold">Deliver Trust™</span>
+          </p>
+
+          {/* Badges: [ ADMIN PORTAL ] & Laurel-flanked ● ISO 9001:2015 */}
+          <div className="flex flex-col items-center justify-center text-center pt-2 space-y-1.5">
+            {/* Outlined Badge */}
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-widest uppercase bg-[#06264A]/80 text-[#D8E9FF] border border-[rgba(55,148,220,0.40)] shadow-xs">
               {isAdmin ? (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-[10px] font-extrabold uppercase tracking-widest bg-[#ED1C24]/15 text-[#ff8085] border border-[#ED1C24]/30 shadow-xs">
-                  <ShieldCheck className="w-3.5 h-3.5 text-[#ED1C24]" />
+                <>
+                  <ShieldCheck className="w-3.5 h-3.5 text-[#ED171F]" />
                   <span>ADMIN PORTAL</span>
-                </span>
+                </>
               ) : (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-[10px] font-extrabold uppercase tracking-widest bg-[#1D5278]/40 text-[#7DB8DC] border border-[#7DB8DC]/30 shadow-xs">
-                  <Landmark className="w-3.5 h-3.5 text-[#7DB8DC]" />
+                <>
+                  <Landmark className="w-3.5 h-3.5 text-[#3794DC]" />
                   <span>ACCOUNTS PORTAL</span>
-                </span>
+                </>
               )}
             </div>
-            <div className="inline-flex items-center justify-center gap-2 text-white font-bold text-[11px] tracking-wider">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block shadow-[0_0_8px_#34d399]" />
-              <span className="text-white/95">ISO 9001:2015</span>
+
+            {/* ISO 9001:2015 with Green Status Dot and Laurel Branches */}
+            <div className="inline-flex items-center justify-center gap-1.5 px-2 select-none">
+              <LaurelLeft />
+              <div className="flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block shadow-[0_0_8px_#34d399]" />
+                <span className="text-[#F7FAFF] font-bold text-[10.5px] tracking-wider uppercase">
+                  ISO 9001:2015
+                </span>
+              </div>
+              <LaurelRight />
             </div>
           </div>
 
-          {/* Subtle Separator below Branding Section */}
-          <div className="mt-3.5 border-b border-[#7DB8DC]/20" />
+          {/* Subtle Separator Below Branding */}
+          <div className="mt-2.5 border-b border-[rgba(55,148,220,0.30)]" />
         </div>
 
-        {/* Navigation List with Light Blue Outline Icons, Subtle Separators, and Refined Active Highlight */}
-        <nav className="relative z-10 flex-1 overflow-y-auto px-3 py-2 space-y-1 custom-dark-scrollbar">
+        {/* Navigation Menu with 3 Sections, Outlined Icon Boxes, MSK Red Active Highlight, and Chevron */}
+        <nav className="relative z-10 flex-1 overflow-y-auto px-3 py-1 space-y-2 custom-dark-scrollbar">
           {navGroups.map((group, groupIdx) => (
-            <div key={group.id} className="space-y-1">
+            <div key={group.id} className="space-y-0.5">
+              {/* Divider between sections */}
               {groupIdx > 0 && (
-                <div className="my-2 border-t border-[#7DB8DC]/15 mx-1" />
+                <div className="pt-1.5 pb-0.5">
+                  <div className="border-t border-[rgba(55,148,220,0.30)] mx-1" />
+                </div>
               )}
-              {group.items.map((item) => {
-                const Icon = item.icon;
-                const isActive = currentTab === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => {
-                      setCurrentTab(item.id);
-                      if (onClose) onClose();
-                    }}
-                    className={`w-full group relative flex items-center justify-between px-3.5 py-2.5 min-h-[42px] rounded-xl text-[12.5px] transition-all duration-150 cursor-pointer ${
-                      isActive
-                        ? 'bg-gradient-to-r from-[#ED1C24] to-[#C91219] text-white font-bold shadow-md shadow-red-950/40 border border-red-500/30'
-                        : 'text-white/90 hover:text-white hover:bg-[#1D5278]/60 font-medium border border-transparent hover:border-[#7DB8DC]/25'
-                    }`}
-                  >
-                    {/* Active Accent Left Bar */}
-                    {isActive && (
-                      <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-white rounded-r-full shadow-xs" />
-                    )}
 
-                    <div className="flex items-center gap-3 min-w-0">
-                      <Icon
-                        className={`w-4 h-4 shrink-0 transition-colors duration-150 ${
+              {/* Section Header Label */}
+              <div className="px-3 pt-1 pb-0.5 text-[9.5px] font-bold tracking-wider text-[#A9C3DF]/75 uppercase select-none">
+                {group.label}
+              </div>
+
+              {/* Group Nav Items */}
+              <div className="space-y-0.5">
+                {group.items.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = currentTab === item.id;
+
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => {
+                        setCurrentTab(item.id);
+                        if (onClose) onClose();
+                      }}
+                      className={`w-full group relative flex items-center justify-between px-2.5 py-1.5 min-h-[36px] rounded-xl text-[12.5px] transition-all duration-150 cursor-pointer ${
+                        isActive
+                          ? 'bg-gradient-to-r from-[#F5222D] to-[#C90012] text-[#F7FAFF] font-bold shadow-[0_4px_20px_rgba(245,34,45,0.40)] border border-red-500/30'
+                          : 'text-[#F7FAFF]/90 hover:text-white hover:bg-[#06264A]/80 font-medium border border-transparent hover:border-[rgba(55,148,220,0.30)]'
+                      }`}
+                    >
+                      {/* Active State Thin White Indicator Bar on Left */}
+                      {isActive && (
+                        <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-4.5 bg-white rounded-r-full shadow-sm" />
+                      )}
+
+                      {/* Icon Container & Nav Label */}
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div
+                          className={`w-7.5 h-7.5 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                            isActive
+                              ? 'bg-white/20 border border-white/30 text-white'
+                              : 'bg-[#06264A] border border-[#0B3764] text-[#D8E9FF] group-hover:bg-[#0B3764] group-hover:border-[rgba(55,148,220,0.40)] group-hover:text-white'
+                          }`}
+                        >
+                          <Icon
+                            className={`w-3.5 h-3.5 transition-colors ${
+                              isActive ? 'stroke-[2.2]' : 'stroke-[1.8]'
+                            }`}
+                          />
+                        </div>
+
+                        <span className="truncate text-left tracking-tight">
+                          {item.label}
+                        </span>
+                      </div>
+
+                      {/* Right-Facing Chevron */}
+                      <ChevronRight
+                        className={`w-3.5 h-3.5 shrink-0 transition-all duration-150 ${
                           isActive
                             ? 'text-white stroke-[2.2]'
-                            : 'text-[#7DB8DC] group-hover:text-white stroke-[1.8]'
+                            : 'text-[#D8E9FF]/50 group-hover:text-white group-hover:translate-x-0.5 stroke-[1.8]'
                         }`}
                       />
-                      <span className="truncate text-left tracking-tight">
-                        {item.label}
-                      </span>
-                    </div>
-
-                    <ChevronRight
-                      className={`w-4 h-4 shrink-0 transition-all duration-150 ${
-                        isActive
-                          ? 'text-white/90'
-                          : 'text-[#7DB8DC]/50 group-hover:text-white group-hover:translate-x-0.5'
-                      }`}
-                    />
-                  </button>
-                );
-              })}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           ))}
         </nav>
 
-        {/* User Status Footer with initials 'MS', Name, Online dot, and Role */}
-        <div className="relative z-10 p-3.5 border-t border-[#7DB8DC]/20 bg-[#0B2945]/85 backdrop-blur-md">
+        {/* Bottom Profile Section */}
+        <div className="relative z-10 px-3.5 py-3 border-t border-[rgba(55,148,220,0.30)] bg-[#031A35]/95 backdrop-blur-md">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5 overflow-hidden">
-              <div className="w-9 h-9 rounded-full bg-[#ED1C24] border-2 border-white/20 text-white flex items-center justify-center text-xs font-black uppercase shrink-0 shadow-sm tracking-wider ring-2 ring-[#7DB8DC]/30">
-                MS
+            <div className="flex items-center gap-2.5 overflow-hidden min-w-0">
+              {/* Profile Avatar: Circular red background with dynamic initials */}
+              <div
+                className="w-8.5 h-8.5 rounded-full bg-[#ED171F] border-2 border-white/20 text-[#F7FAFF] flex items-center justify-center text-xs font-black uppercase shrink-0 shadow-[0_0_12px_rgba(237,23,31,0.50)] tracking-wider"
+                title={user?.name || 'Administrator'}
+              >
+                {userInitials}
               </div>
+
+              {/* User Name & Role Label with Glowing Online Indicator */}
               <div className="truncate min-w-0">
                 <div className="flex items-center gap-1.5">
-                  <p className="text-[12.5px] font-bold text-white truncate leading-tight">
-                    {user?.name || 'MSK System Administrator'}
+                  <p className="text-[12px] font-bold text-[#F7FAFF] truncate leading-tight">
+                    {user?.name || 'Administrator'}
                   </p>
                   <span
-                    className="w-2 h-2 rounded-full bg-emerald-400 shrink-0 shadow-[0_0_8px_#34d399] ring-2 ring-[#0B2945]"
+                    className="w-2 h-2 rounded-full bg-emerald-400 shrink-0 shadow-[0_0_8px_#34d399] ring-2 ring-[#031A35]"
                     title="Online"
                   />
                 </div>
-                <p className="text-[10px] text-[#7DB8DC] font-bold uppercase tracking-wider truncate mt-0.5">
-                  {user?.role === 'ACCOUNT_MANAGER' ? 'Account Manager' : (user?.role || 'ADMIN')}
+                <p className="text-[9.5px] text-[#A9C3DF] font-bold uppercase tracking-wider truncate mt-0.5">
+                  {userRoleDisplay}
                 </p>
               </div>
             </div>

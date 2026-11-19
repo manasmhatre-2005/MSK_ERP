@@ -29,6 +29,7 @@ const SettingsPage = lazy(() => import('./pages/SettingsPage').then((m) => ({ de
 const AuditLogPage = lazy(() => import('./pages/AuditLogPage').then((m) => ({ default: m.AuditLogPage })));
 const DataEntryModule = lazy(() => import('./pages/DataEntryModule').then((m) => ({ default: m.DataEntryModule })));
 const CartingDetailsPage = lazy(() => import('./pages/CartingDetailsPage').then((m) => ({ default: m.CartingDetailsPage })));
+const UsersPage = lazy(() => import('./pages/UsersPage').then((m) => ({ default: m.UsersPage })));
 
 // Heavy Modals & Print Views
 const GlobalSearchModal = lazy(() => import('./components/layout/GlobalSearchModal').then((m) => ({ default: m.GlobalSearchModal })));
@@ -76,7 +77,7 @@ const MainApp: React.FC = () => {
     const matchInvoice = p.match(/\/(?:admin|account)\/invoices(?:\/(.+))?/);
     if (matchInvoice) return 'invoices';
     const matchTab = p.match(/\/(?:admin|account)\/([a-z\-]+)/);
-    if (matchTab && ['dashboard', 'parties', 'exporters', 'jobs', 'containers', 'charges', 'invoices', 'payments', 'reports', 'settings', 'audit'].includes(matchTab[1])) {
+    if (matchTab && ['dashboard', 'parties', 'exporters', 'jobs', 'containers', 'carting', 'charges', 'invoices', 'payments', 'reports', 'settings', 'audit', 'users'].includes(matchTab[1])) {
       return matchTab[1];
     }
     return 'dashboard';
@@ -548,6 +549,9 @@ const MainApp: React.FC = () => {
 
           {/* Reports */}
           {currentTab === 'reports' && <ReportsPage />}
+
+          {/* User Management (ADMIN ONLY) */}
+          {currentTab === 'users' && user.role === 'ADMIN' && <UsersPage />}
 
           {/* Settings (ADMIN ONLY) */}
           {currentTab === 'settings' && user.role === 'ADMIN' && <SettingsPage />}

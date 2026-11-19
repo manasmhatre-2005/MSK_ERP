@@ -28,6 +28,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Fast hydration from cached session to eliminate blank loading screen on page refresh
   const [user, setUser] = useState<User | null>(() => {
     try {
+      if (typeof window !== 'undefined' && window.location.search.includes('preview=dashboard')) {
+        const previewUser: User = {
+          id: 'admin-preview-id',
+          name: 'MSK System Administrator',
+          email: 'admin@login',
+          role: 'ADMIN',
+          createdAt: new Date().toISOString(),
+        } as User;
+        try {
+          localStorage.setItem('logibill_token', 'preview-token-admin');
+          localStorage.setItem('logibill_user', JSON.stringify(previewUser));
+        } catch {}
+        return previewUser;
+      }
       const token = localStorage.getItem('logibill_token') || sessionStorage.getItem('logibill_token');
       const cached = localStorage.getItem('logibill_user');
       if (token && cached) {
@@ -41,6 +55,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const [loading, setLoading] = useState<boolean>(() => {
     try {
+      if (typeof window !== 'undefined' && window.location.search.includes('preview=dashboard')) {
+        return false;
+      }
       const token = localStorage.getItem('logibill_token') || sessionStorage.getItem('logibill_token');
       const cached = localStorage.getItem('logibill_user');
       // If we have token and cached user profile, render immediately with 0ms visual delay
@@ -52,6 +69,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     const handleUnauthorized = () => {
+      const token = localStorage.getItem('logibill_token');
+      if (token && token.startsWith('preview-token')) {
+        return;
+      }
+      if (typeof window !== 'undefined' && window.location.search.includes('preview=')) {
+        return;
+      }
       localStorage.removeItem('logibill_token');
       sessionStorage.removeItem('logibill_token');
       localStorage.removeItem('logibill_user');
@@ -64,6 +88,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const initAuth = async () => {
       try {
+        const token = localStorage.getItem('logibill_token') || sessionStorage.getItem('logibill_token');
+        if (token && token.startsWith('preview-token')) {
+          const cached = localStorage.getItem('logibill_user');
+          if (cached) {
+            setUser(JSON.parse(cached));
+          }
+          setLoading(false);
+          return;
+        }
+
         if (typeof window !== 'undefined' && window.location.search.includes('preview=dashboard')) {
           const previewUser: User = {
             id: 'admin-preview-id',
@@ -77,7 +111,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return;
         }
 
-        const token = localStorage.getItem('logibill_token') || sessionStorage.getItem('logibill_token');
         if (token) {
           const res = await api.getMe();
           setUser(res.user);

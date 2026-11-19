@@ -27,6 +27,21 @@
   ::-webkit-scrollbar-thumb:hover {
     background: #94a3b8;
   }
+
+  /* Custom dark scrollbar for Dark Navy Sidebar */
+  .custom-dark-scrollbar::-webkit-scrollbar {
+    width: 5px;
+  }
+  .custom-dark-scrollbar::-webkit-scrollbar-track {
+    background: rgba(3, 26, 53, 0.4);
+  }
+  .custom-dark-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(55, 148, 220, 0.3);
+    border-radius: 9999px;
+  }
+  .custom-dark-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(55, 148, 220, 0.55);
+  }
 }
 
 /* Print Styles for A4 Logistics Invoices */
