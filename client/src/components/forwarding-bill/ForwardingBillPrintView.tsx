@@ -65,9 +65,9 @@ export const ForwardingBillPrintView: React.FC<ForwardingBillPrintViewProps> = (
 
   // Company details
   const companyName = settings?.companyName || 'MSK LOGISTIC SOLUTION';
-  const address = settings?.address || 'JNPT Township Colony, Sector - 3, Building No. B/48, Office No. 3';
+  const address = settings?.address || 'OFFICE NO-A-428, 4th FLOOR, BALAJI BHAWAN, PLOT NO-42A, SECTOR 11, CBD BELAPUR';
   const city = settings?.city || 'Navi Mumbai';
-  const pincode = settings?.pincode || '400702';
+  const pincode = settings?.pincode || '400 614';
   const phone = settings?.phone || '+91 8104592823';
   const email = settings?.email || 'accounts@msklogisticsolution.com';
   const website = settings?.website || 'www.msklogisticsolution.com';

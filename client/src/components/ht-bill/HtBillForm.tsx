@@ -86,6 +86,15 @@ export const HtBillForm: React.FC<HtBillFormProps> = ({
   const [billToState, setBillToState] = useState('Maharashtra');
   const [billToStateCode, setBillToStateCode] = useState('27');
 
+  // Consignee Details (Shipped To)
+  const [consigneeName, setConsigneeName] = useState('');
+  const [consigneeAddress, setConsigneeAddress] = useState('');
+
+  // Exporter & Shipping Bill Reference
+  const [exporterId, setExporterId] = useState<string>('');
+  const [shippingBillNo, setShippingBillNo] = useState('');
+  const [exporters, setExporters] = useState<any[]>([]);
+
   // Shipment Reference
   const [vesselVoyage, setVesselVoyage] = useState('Pacific Pioneer / V-042E');
   const [mblHbl, setMblHbl] = useState('MEDU67201948 / AGLPNE0941');
@@ -188,14 +197,16 @@ export const HtBillForm: React.FC<HtBillFormProps> = ({
     const fetchMasters = async () => {
       setLoadingMasters(true);
       try {
-        const [partiesRes, jobsRes, settingsRes] = await Promise.all([
+        const [partiesRes, jobsRes, settingsRes, exportersRes] = await Promise.all([
           api.getParties(),
           api.getJobs(),
           api.getSettings(),
+          api.getExporters().catch(() => []),
         ]);
         setParties(partiesRes || []);
         setJobs(jobsRes || []);
         setSettings(settingsRes);
+        setExporters(exportersRes || []);
 
         // Preselect initial party if provided
         if (initialParty?.id) {
@@ -233,6 +244,11 @@ export const HtBillForm: React.FC<HtBillFormProps> = ({
       setBillToState(p.state || 'Maharashtra');
       setBillToStateCode(p.stateCode || '27');
 
+      if (!consigneeName) {
+        setConsigneeName(p.legalName || p.tradeName);
+        setConsigneeAddress(p.shippingAddress || p.billingAddress || p.registeredAddress || '');
+      }
+
       // Auto check inter-state (Maharashtra code is 27)
       if (p.stateCode && p.stateCode !== '27') {
         setIsInterState(true);
@@ -253,20 +269,26 @@ export const HtBillForm: React.FC<HtBillFormProps> = ({
     }
   };
 
-  // Helper date calculation in days
-  const calculateDays = (d1Str: string, d2Str: string): number => {
+  // Helper date calculation: INCLUSIVE of both start and end date (+1 day)
+  const calculateInclusiveDays = (d1Str: string, d2Str: string): number => {
     if (!d1Str || !d2Str) return 0;
-    const t1 = new Date(d1Str).getTime();
-    const t2 = new Date(d2Str).getTime();
-    if (isNaN(t1) || isNaN(t2) || t2 < t1) return 0;
-    return Math.max(0, Math.round((t2 - t1) / (1000 * 3600 * 24)));
+    const d1 = new Date(d1Str);
+    const d2 = new Date(d2Str);
+    if (isNaN(d1.getTime()) || isNaN(d2.getTime())) return 0;
+    const utc1 = Date.UTC(d1.getFullYear(), d1.getMonth(), d1.getDate());
+    const utc2 = Date.UTC(d2.getFullYear(), d2.getMonth(), d2.getDate());
+    if (utc2 < utc1) return 0;
+    return Math.floor((utc2 - utc1) / (1000 * 60 * 60 * 24)) + 1;
   };
 
-  // Calculate container days
+  // Calculate container days (Client business rules):
+  // 1. Empty Ground Rent Days = Stuffing Date - Empty Container In Date + 1 (inclusive)
+  // 2. Carting Days = Stuffing Date - Carting Date + 1 (inclusive)
+  // 3. Loaded Container Ground Rent Days = Loaded Container Out Date - Stuffing Date + 1 (inclusive)
   const getContainerDays = (c: ContainerRow) => {
-    const emptyDays = calculateDays(c.emptyGateInDate, c.stuffingDate);
-    const cargoDays = calculateDays(c.stuffingDate, c.cartingDate);
-    const loadedDays = calculateDays(c.cartingDate, c.lddOutDate);
+    const emptyDays = calculateInclusiveDays(c.emptyGateInDate, c.stuffingDate);
+    const cargoDays = calculateInclusiveDays(c.cartingDate, c.stuffingDate);
+    const loadedDays = calculateInclusiveDays(c.stuffingDate, c.lddOutDate);
     return { emptyDays, cargoDays, loadedDays };
   };
 
@@ -368,11 +390,11 @@ export const HtBillForm: React.FC<HtBillFormProps> = ({
             amount: ch.rate * qty,
           };
         }
-        if (ch.description.includes('Cargo Staging & Warehouse Handling')) {
+        if (ch.description.includes('Cargo Staging & Warehouse Handling') || ch.description.includes('Carting Days')) {
           const qty = totalContainerDays.cargoDays || 1;
           return {
             ...ch,
-            description: `Cargo Staging & Warehouse Handling (Cargo Days: Total ${qty} Days)`,
+            description: `Cargo Staging & Warehouse Handling (Carting Days: Total ${qty} Days)`,
             quantity: qty,
             amount: ch.rate * qty,
           };
@@ -453,6 +475,10 @@ export const HtBillForm: React.FC<HtBillFormProps> = ({
         billType: 'HT_BILL',
         partyId,
         invoiceDate: new Date(invoiceDate).toISOString(),
+        consigneeName: consigneeName.trim() || undefined,
+        consigneeAddress: consigneeAddress.trim() || undefined,
+        exporterId: exporterId || undefined,
+        sbNumbers: shippingBillNo.trim() || undefined,
         vesselVoyage: vesselVoyage.trim(),
         mblHbl: mblHbl.trim(),
         portOfLoading: portOfLoading.trim(),
@@ -570,85 +596,134 @@ export const HtBillForm: React.FC<HtBillFormProps> = ({
               </div>
             </div>
 
-            {/* Bill To Recipient */}
-            <div className="md:col-span-8 space-y-3">
-              <h3 className="font-bold text-slate-900 uppercase text-[11px] flex items-center gap-1.5">
-                <Building2 className="w-3.5 h-3.5 text-red-600" />
-                <span>Bill To (Recipient Party)</span>
-              </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[10.5px] font-semibold text-slate-600 mb-1">
-                    Select Existing Party
-                  </label>
-                  <select
-                    value={partyId}
-                    onChange={(e) => handleSelectParty(e.target.value)}
-                    className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg font-medium text-slate-900"
-                  >
-                    <option value="">-- Choose Party from Master --</option>
-                    {parties.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.legalName || p.tradeName} ({p.gstin || 'URP'})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-[10.5px] font-semibold text-slate-600 mb-1">
-                    Party Legal Name
-                  </label>
-                  <input
-                    type="text"
-                    value={billToName}
-                    onChange={(e) => setBillToName(e.target.value)}
-                    className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg font-semibold text-slate-900"
-                    placeholder="Recipient Company Name"
-                  />
-                </div>
-                <div className="sm:col-span-2">
-                  <label className="block text-[10.5px] font-semibold text-slate-600 mb-1">
-                    Billing Address
-                  </label>
-                  <input
-                    type="text"
-                    value={billToAddress}
-                    onChange={(e) => setBillToAddress(e.target.value)}
-                    className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-800"
-                    placeholder="Address, City, State, Pincode"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10.5px] font-semibold text-slate-600 mb-1">
-                    Party GSTIN
-                  </label>
-                  <input
-                    type="text"
-                    value={billToGstin}
-                    onChange={(e) => setBillToGstin(e.target.value.toUpperCase())}
-                    className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg font-mono font-bold text-slate-900"
-                    placeholder="e.g. 27AXWPK4562G1ZX"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10.5px] font-semibold text-slate-600 mb-1">
-                    State & Code (Place of Supply)
-                  </label>
-                  <div className="flex gap-2">
+            {/* Bill To & Consignee Details (Two Columns) */}
+            <div className="md:col-span-8 space-y-4">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {/* Bill To */}
+                <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-2.5">
+                  <h3 className="font-bold text-slate-900 uppercase text-[11px] flex items-center gap-1.5 pb-1 border-b border-slate-200">
+                    <Building2 className="w-3.5 h-3.5 text-red-600" />
+                    <span>Bill To (Recipient Customer)</span>
+                  </h3>
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-600 mb-1">
+                      Select Party from Master
+                    </label>
+                    <select
+                      value={partyId}
+                      onChange={(e) => handleSelectParty(e.target.value)}
+                      className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-medium text-slate-900"
+                    >
+                      <option value="">-- Choose Party --</option>
+                      {parties.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.legalName || p.tradeName} ({p.gstin || 'URP'})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-600 mb-1">
+                      Customer Name
+                    </label>
                     <input
                       type="text"
-                      value={billToState}
-                      onChange={(e) => setBillToState(e.target.value)}
-                      className="flex-1 px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-800"
-                      placeholder="State"
+                      value={billToName}
+                      onChange={(e) => setBillToName(e.target.value)}
+                      className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-900"
+                      placeholder="Customer Legal Name"
                     />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-600 mb-1">
+                      Complete Billing Address
+                    </label>
                     <input
                       type="text"
-                      value={billToStateCode}
-                      onChange={(e) => setBillToStateCode(e.target.value)}
-                      className="w-16 px-2 py-1.5 bg-white border border-slate-300 rounded-lg font-mono text-center"
-                      placeholder="Code"
+                      value={billToAddress}
+                      onChange={(e) => setBillToAddress(e.target.value)}
+                      className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-800"
+                      placeholder="Address, City, State, Pincode"
                     />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] font-semibold text-slate-600 mb-1">
+                        GSTIN
+                      </label>
+                      <input
+                        type="text"
+                        value={billToGstin}
+                        onChange={(e) => setBillToGstin(e.target.value.toUpperCase())}
+                        className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-mono font-bold text-slate-900"
+                        placeholder="GSTIN"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-semibold text-slate-600 mb-1">
+                        State & Code
+                      </label>
+                      <div className="flex gap-1">
+                        <input
+                          type="text"
+                          value={billToState}
+                          onChange={(e) => setBillToState(e.target.value)}
+                          className="flex-1 px-2 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-800"
+                          placeholder="State"
+                        />
+                        <input
+                          type="text"
+                          value={billToStateCode}
+                          onChange={(e) => setBillToStateCode(e.target.value)}
+                          className="w-12 px-1 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-mono text-center"
+                          placeholder="Code"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Consignee Details */}
+                <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-2.5">
+                  <h3 className="font-bold text-slate-900 uppercase text-[11px] flex items-center gap-1.5 pb-1 border-b border-slate-200">
+                    <Truck className="w-3.5 h-3.5 text-blue-600" />
+                    <span>Consignee Details (Shipped To)</span>
+                  </h3>
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-600 mb-1">
+                      Consignee Name
+                    </label>
+                    <input
+                      type="text"
+                      value={consigneeName}
+                      onChange={(e) => setConsigneeName(e.target.value)}
+                      className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-900"
+                      placeholder="Consignee / Receiver Name (if different)"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-600 mb-1">
+                      Consignee Address
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={consigneeAddress}
+                      onChange={(e) => setConsigneeAddress(e.target.value)}
+                      className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-800"
+                      placeholder="Consignee delivery address, port or warehouse destination"
+                    />
+                  </div>
+                  <div className="pt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setConsigneeName(billToName);
+                        setConsigneeAddress(billToAddress);
+                      }}
+                      className="text-[10px] text-blue-600 hover:text-blue-800 font-semibold underline"
+                    >
+                      Copy from Billing Customer
+                    </button>
                   </div>
                 </div>
               </div>
@@ -680,53 +755,82 @@ export const HtBillForm: React.FC<HtBillFormProps> = ({
                 </div>
               )}
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
               <div>
-                <label className="block text-[10.5px] font-semibold text-slate-600 mb-1">
+                <label className="block text-[10px] font-semibold text-slate-600 mb-1">
+                  Exporter Name
+                </label>
+                <select
+                  value={exporterId}
+                  onChange={(e) => setExporterId(e.target.value)}
+                  className="w-full px-2 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 font-medium"
+                >
+                  <option value="">-- Select Exporter --</option>
+                  {exporters.map((exp) => (
+                    <option key={exp.id} value={exp.id}>
+                      {exp.name} {exp.code ? `(${exp.code})` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-[10px] font-semibold text-slate-600 mb-1">
+                  Shipping Bill Number
+                </label>
+                <input
+                  type="text"
+                  value={shippingBillNo}
+                  onChange={(e) => setShippingBillNo(e.target.value.toUpperCase())}
+                  className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-mono font-bold text-slate-900"
+                  placeholder="e.g. SB-892104"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-semibold text-slate-600 mb-1">
                   Vessel / Voyage
                 </label>
                 <input
                   type="text"
                   value={vesselVoyage}
                   onChange={(e) => setVesselVoyage(e.target.value)}
-                  className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg font-medium text-slate-900"
-                  placeholder="e.g. Pacific Pioneer / V-042E"
+                  className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-medium text-slate-900"
+                  placeholder="Pacific Pioneer / V-042E"
                 />
               </div>
               <div>
-                <label className="block text-[10.5px] font-semibold text-slate-600 mb-1">
+                <label className="block text-[10px] font-semibold text-slate-600 mb-1">
                   MBL / HBL Number
                 </label>
                 <input
                   type="text"
                   value={mblHbl}
                   onChange={(e) => setMblHbl(e.target.value)}
-                  className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg font-mono text-slate-900"
-                  placeholder="e.g. MEDU67201948 / AGLPNE0941"
+                  className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-mono text-slate-900"
+                  placeholder="MEDU67201948"
                 />
               </div>
               <div>
-                <label className="block text-[10.5px] font-semibold text-slate-600 mb-1">
+                <label className="block text-[10px] font-semibold text-slate-600 mb-1">
                   Port of Loading
                 </label>
                 <input
                   type="text"
                   value={portOfLoading}
                   onChange={(e) => setPortOfLoading(e.target.value)}
-                  className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-900"
-                  placeholder="e.g. Nhava Sheva (INNSA)"
+                  className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900"
+                  placeholder="Nhava Sheva (INNSA)"
                 />
               </div>
               <div>
-                <label className="block text-[10.5px] font-semibold text-slate-600 mb-1">
+                <label className="block text-[10px] font-semibold text-slate-600 mb-1">
                   Port of Discharge
                 </label>
                 <input
                   type="text"
                   value={portOfDischarge}
                   onChange={(e) => setPortOfDischarge(e.target.value)}
-                  className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-900"
-                  placeholder="e.g. Rotterdam (NLRTM)"
+                  className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900"
+                  placeholder="Rotterdam (NLRTM)"
                 />
               </div>
             </div>
@@ -741,7 +845,7 @@ export const HtBillForm: React.FC<HtBillFormProps> = ({
                   <span>1. Container Tracking, Milestones & Period Calculations</span>
                 </h3>
                 <p className="text-[10px] text-slate-500">
-                  Enter container operational milestones; day periods are calculated automatically.
+                  Container event sequence: 1. Empty In &rarr; 2. Carting &rarr; 3. Stuffing &rarr; 4. Loaded Out (Inclusive +1 day calculations).
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -770,19 +874,19 @@ export const HtBillForm: React.FC<HtBillFormProps> = ({
               <table className="w-full text-left border-collapse text-[11px]">
                 <thead>
                   <tr className="bg-slate-800 text-white font-bold text-[10px] uppercase">
-                    <th className="p-2 border-r border-slate-700 w-44">Container No. & Size/Type</th>
-                    <th className="p-2 border-r border-slate-700 w-32 text-center">Empty Pick-up</th>
-                    <th className="p-2 border-r border-slate-700 w-32 text-center">Stuffing Date</th>
-                    <th className="p-2 border-r border-slate-700 w-32 text-center">Carting Date</th>
-                    <th className="p-2 border-r border-slate-700 w-32 text-center">Loaded Gate-in</th>
+                    <th className="p-2 border-r border-slate-700 w-48">Container No. & Size/Type</th>
+                    <th className="p-2 border-r border-slate-700 w-28 text-center bg-slate-800">1. Empty In Date</th>
+                    <th className="p-2 border-r border-slate-700 w-28 text-center bg-slate-800">2. Carting Date</th>
+                    <th className="p-2 border-r border-slate-700 w-28 text-center bg-slate-800">3. Stuffing Date</th>
+                    <th className="p-2 border-r border-slate-700 w-28 text-center bg-slate-800">4. Loaded Out Date</th>
                     <th className="p-2 border-r border-slate-700 w-24 text-center bg-slate-900">
-                      Empty Days<br/><span className="text-[8px] text-slate-300 font-normal">(Pick-up to Stuff)</span>
+                      Empty Days<br/><span className="text-[8px] text-teal-300 font-normal">(In to Stuff +1)</span>
                     </th>
                     <th className="p-2 border-r border-slate-700 w-24 text-center bg-slate-900">
-                      Cargo Days<br/><span className="text-[8px] text-slate-300 font-normal">(Stuff to Cart)</span>
+                      Carting Days<br/><span className="text-[8px] text-teal-300 font-normal">(Cart to Stuff +1)</span>
                     </th>
                     <th className="p-2 border-r border-slate-700 w-24 text-center bg-slate-900">
-                      Loaded Days<br/><span className="text-[8px] text-slate-300 font-normal">(Cart to Gate-in)</span>
+                      Loaded Days<br/><span className="text-[8px] text-teal-300 font-normal">(Stuff to Out +1)</span>
                     </th>
                     <th className="p-2 text-center w-10"></th>
                   </tr>
@@ -797,14 +901,17 @@ export const HtBillForm: React.FC<HtBillFormProps> = ({
                             type="text"
                             value={c.containerNumber}
                             onChange={(e) => handleUpdateContainer(c.id, 'containerNumber', e.target.value.toUpperCase())}
-                            className="w-full font-mono font-bold text-slate-950 px-2 py-1 border border-slate-300 rounded mb-1"
+                            className="w-full font-mono font-bold text-slate-950 px-2 py-1 border border-slate-300 rounded mb-1 text-xs"
                             placeholder="e.g. MSCU4810294"
                           />
-                          <div className="flex gap-1">
+                          <div className="flex gap-1 items-center">
+                            <span className="text-[9px] font-bold text-blue-700 uppercase bg-blue-50 px-1 py-0.5 rounded border border-blue-200">
+                              TYPE:
+                            </span>
                             <select
                               value={c.size}
                               onChange={(e) => handleUpdateContainer(c.id, 'size', e.target.value)}
-                              className="w-1/2 px-1 py-0.5 border border-slate-300 rounded text-[10px] bg-white font-medium"
+                              className="w-1/2 px-1 py-1 border border-blue-300 rounded text-xs bg-white font-black text-blue-950"
                             >
                               {CONTAINER_SIZES.map((sz) => (
                                 <option key={sz} value={sz}>{sz}</option>
@@ -813,7 +920,7 @@ export const HtBillForm: React.FC<HtBillFormProps> = ({
                             <select
                               value={c.type}
                               onChange={(e) => handleUpdateContainer(c.id, 'type', e.target.value)}
-                              className="w-1/2 px-1 py-0.5 border border-slate-300 rounded text-[10px] bg-white font-medium"
+                              className="w-1/2 px-1 py-1 border border-blue-300 rounded text-xs bg-white font-black text-blue-950"
                             >
                               {CONTAINER_TYPES.map((tp) => (
                                 <option key={tp} value={tp}>{tp}</option>
@@ -821,6 +928,7 @@ export const HtBillForm: React.FC<HtBillFormProps> = ({
                             </select>
                           </div>
                         </td>
+                        {/* 1. Empty Container In Date */}
                         <td className="p-2 border-r border-slate-200 text-center">
                           <input
                             type="date"
@@ -829,14 +937,7 @@ export const HtBillForm: React.FC<HtBillFormProps> = ({
                             className="w-full px-2 py-1 border border-slate-200 rounded text-[10.5px]"
                           />
                         </td>
-                        <td className="p-2 border-r border-slate-200 text-center">
-                          <input
-                            type="date"
-                            value={c.stuffingDate}
-                            onChange={(e) => handleUpdateContainer(c.id, 'stuffingDate', e.target.value)}
-                            className="w-full px-2 py-1 border border-slate-200 rounded text-[10.5px]"
-                          />
-                        </td>
+                        {/* 2. Carting Date */}
                         <td className="p-2 border-r border-slate-200 text-center">
                           <input
                             type="date"
@@ -845,6 +946,16 @@ export const HtBillForm: React.FC<HtBillFormProps> = ({
                             className="w-full px-2 py-1 border border-slate-200 rounded text-[10.5px]"
                           />
                         </td>
+                        {/* 3. Stuffing Date */}
+                        <td className="p-2 border-r border-slate-200 text-center">
+                          <input
+                            type="date"
+                            value={c.stuffingDate}
+                            onChange={(e) => handleUpdateContainer(c.id, 'stuffingDate', e.target.value)}
+                            className="w-full px-2 py-1 border border-slate-200 rounded text-[10.5px]"
+                          />
+                        </td>
+                        {/* 4. Loaded Container Out Date */}
                         <td className="p-2 border-r border-slate-200 text-center">
                           <input
                             type="date"
@@ -853,13 +964,14 @@ export const HtBillForm: React.FC<HtBillFormProps> = ({
                             className="w-full px-2 py-1 border border-slate-200 rounded text-[10.5px]"
                           />
                         </td>
-                        <td className="p-2 border-r border-slate-200 text-center font-bold text-teal-700 bg-teal-50/40 font-mono">
+                        {/* Calculated Inclusive Days */}
+                        <td className="p-2 border-r border-slate-200 text-center font-bold text-teal-700 bg-teal-50/40 font-mono text-xs">
                           {emptyDays} Days
                         </td>
-                        <td className="p-2 border-r border-slate-200 text-center font-bold text-teal-700 bg-teal-50/40 font-mono">
+                        <td className="p-2 border-r border-slate-200 text-center font-bold text-teal-700 bg-teal-50/40 font-mono text-xs">
                           {cargoDays} Days
                         </td>
-                        <td className="p-2 border-r border-slate-200 text-center font-bold text-teal-700 bg-teal-50/40 font-mono">
+                        <td className="p-2 border-r border-slate-200 text-center font-bold text-teal-700 bg-teal-50/40 font-mono text-xs">
                           {loadedDays} Days
                         </td>
                         <td className="p-2 text-center">

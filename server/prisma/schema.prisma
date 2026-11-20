@@ -28,11 +28,11 @@ model CompanySettings {
   gstin                 String   @default("27AXWPK4562G1ZX")
   pan                   String   @default("AXWPK4562G")
   tan                   String   @default("PNES72845D")
-  address               String   @default("JNPT Township Colony, Sector - 3, Building No. B/48, Office No. 3")
+  address               String   @default("OFFICE NO-A-428, 4th FLOOR, BALAJI BHAWAN, PLOT NO-42A, SECTOR 11, CBD BELAPUR")
   city                  String   @default("Navi Mumbai")
   state                 String   @default("Maharashtra")
   stateCode             String   @default("27")
-  pincode               String   @default("400702")
+  pincode               String   @default("400 614")
   phone                 String   @default("+91 8104592823")
   email                 String   @default("accounts@msklogisticsolution.com")
   website               String   @default("www.msklogisticsolution.com")
@@ -301,6 +301,8 @@ model Invoice {
   mblHbl                 String?
   portOfLoading          String?
   portOfDischarge        String?
+  fromCfs                String?
+  toCfs                  String?
   idempotencyKey         String?            @unique
 
   containers     InvoiceContainer[]

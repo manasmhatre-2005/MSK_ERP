@@ -495,7 +495,7 @@ export const BillVerificationPage: React.FC<BillVerificationPageProps> = ({ toke
           </div>
         </div>
         <p className="text-[10px] text-slate-500">
-          JNPT Township Colony, Sector - 3, Building No. B/48, Office No. 3, Navi Mumbai - 400702 • Phone: +91 8104592823 • Email: accounts@msklogisticsolution.com
+          OFFICE NO-A-428, 4th FLOOR, BALAJI BHAWAN, PLOT NO-42A, SECTOR 11, CBD BELAPUR, NAVI MUMBAI 400 614 • Phone: +91 8104592823 • Email: accounts@msklogisticsolution.com
         </p>
       </footer>
     </div>

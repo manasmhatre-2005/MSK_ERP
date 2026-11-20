@@ -1297,7 +1297,7 @@ export const InvoiceWizard: React.FC<InvoiceWizardProps> = ({
                     {settings?.companyName || 'MSK LOGISTIC SOLUTION'}
                   </h1>
                   <p className="text-[10px] text-slate-700 font-medium">
-                    {settings?.address || 'JNPT Township Colony, Sector - 3, Building No. B/48, Office No. 3'}, {settings?.city || 'Navi Mumbai'} {settings?.pincode || '400702'}.
+                    {settings?.address || 'OFFICE NO-A-428, 4th FLOOR, BALAJI BHAWAN, PLOT NO-42A, SECTOR 11, CBD BELAPUR'}, {settings?.city || 'Navi Mumbai'} {settings?.pincode || '400 614'}.
                   </p>
                   <p className="text-[10px] text-slate-900 font-bold">
                     TAN NO: {settings?.tan || 'PNES72845D'} &nbsp; PAN NO: {settings?.pan || 'AXWPK4562G'} &nbsp; GST NO: {settings?.gstin || '27AXWPK4562G1ZX'}

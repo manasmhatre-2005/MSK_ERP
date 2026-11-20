@@ -1,0 +1,1 @@
+import{r as t}from"./rolldown-runtime-CXHxssQy.js";import{At as a}from"./vendor-icons-C7fhvDtt.js";import{t as e}from"./vendor-react-D5WJ3Bvu.js";import{t as i}from"./CartingDetailsSection-BLxbqwpT.js";var _=t(a(),1),r=e(),n=()=>(0,r.jsx)("div",{className:"space-y-6",children:(0,r.jsx)(i,{})});export{n as CartingDetailsPage};

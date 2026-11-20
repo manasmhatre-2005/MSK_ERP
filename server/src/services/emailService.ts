@@ -43,7 +43,7 @@ export class EmailService {
    */
   static generateEmailHtml(invoice: any, settings: any, customMessage?: string): string {
     const company = settings?.companyName || 'MSK LOGISTIC SOLUTION';
-    const address = settings?.address || 'JNPT Township Colony, Sector - 3, Building No. B/48, Office No. 3, Navi Mumbai 400702';
+    const address = settings?.address || 'OFFICE NO-A-428, 4th FLOOR, BALAJI BHAWAN, PLOT NO-42A, SECTOR 11, CBD BELAPUR, NAVI MUMBAI 400 614.';
     const phone = settings?.phone || '+91 8104592823';
     const email = settings?.email || 'accounts@msklogisticsolution.com';
     const currSym = invoice.currency === 'USD' ? '$' : '₹';
@@ -138,7 +138,7 @@ export class EmailService {
 
     <div class="footer">
       <div>&copy; ${new Date().getFullYear()} ${company}. All rights reserved.</div>
-      <div style="margin-top: 4px;">JNPT Township Colony, Navi Mumbai &bull; Maharashtra, India</div>
+      <div style="margin-top: 4px;">OFFICE NO-A-428, 4th FLOOR, BALAJI BHAWAN, PLOT NO-42A, SECTOR 11, CBD BELAPUR, NAVI MUMBAI 400 614.</div>
     </div>
   </div>
 </body>

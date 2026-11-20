@@ -71,9 +71,9 @@ export const InvoicePrintView: React.FC<InvoicePrintViewProps> = ({
   const currSymbol = getCurrencySymbol(invoice.currency);
 
   const companyName = settings?.companyName || 'MSK LOGISTIC SOLUTION';
-  const address = settings?.address || 'JNPT Township Colony, Sector - 3, Building No. B/48, Office No. 3';
+  const address = settings?.address || 'OFFICE NO-A-428, 4th FLOOR, BALAJI BHAWAN, PLOT NO-42A, SECTOR 11, CBD BELAPUR';
   const city = settings?.city || 'Navi Mumbai';
-  const pincode = settings?.pincode || '400702';
+  const pincode = settings?.pincode || '400 614';
   const tan = settings?.tan || 'PNES72845D';
   const pan = settings?.pan || 'AXWPK4562G';
   const gstin = settings?.gstin || '27AXWPK4562G1ZX';

@@ -96,7 +96,7 @@ export const EmptyContainerPrintView: React.FC<EmptyContainerPrintViewProps> = (
 
   const settings = companySettings || {
     companyName: 'MSK LOGISTIC SOLUTION',
-    address: 'JNPT Township Colony, Sector - 3, Building No. B/48, Office No. 3, Navi Mumbai 400702',
+    address: 'OFFICE NO-A-428, 4th FLOOR, BALAJI BHAWAN, PLOT NO-42A, SECTOR 11, CBD BELAPUR, NAVI MUMBAI 400 614.',
     gstin: '27AXWPK4562G1ZX',
     pan: 'AXWPK4562G',
     email: 'accounts@msklogisticsolution.com',
@@ -208,7 +208,7 @@ export const EmptyContainerPrintView: React.FC<EmptyContainerPrintViewProps> = (
             </h1>
           </div>
           <p className="text-[9.5px] text-slate-700 leading-snug">
-            {settings?.address || 'JNPT Township Colony, Sector - 3, Building No. B/48, Office No. 3, Navi Mumbai 400702'}
+            {settings?.address || 'OFFICE NO-A-428, 4th FLOOR, BALAJI BHAWAN, PLOT NO-42A, SECTOR 11, CBD BELAPUR, NAVI MUMBAI 400 614.'}
           </p>
           <p className="text-[9.5px] font-bold text-slate-900">
             GSTIN: <span className="font-mono">{settings?.gstin || '27AXWPK4562G1ZX'}</span> | PAN: <span className="font-mono">{settings?.pan || 'AXWPK4562G'}</span>
@@ -238,11 +238,7 @@ export const EmptyContainerPrintView: React.FC<EmptyContainerPrintViewProps> = (
       {/* ========================================== */}
       {/* 2. SUBHEADER METADATA BAR */}
       {/* ========================================== */}
-      <div className="border border-slate-900 bg-slate-50/80 px-3 py-1.5 grid grid-cols-3 gap-2 text-[10px]">
-        <div>
-          <span className="text-slate-500 font-bold">Terminal Gate Pass: </span>
-          <span className="font-mono font-bold text-slate-900">{tgp}</span>
-        </div>
+      <div className="border border-slate-900 bg-slate-50/80 px-3 py-1.5 grid grid-cols-2 gap-2 text-[10px]">
         <div>
           <span className="text-slate-500 font-bold">EIR / LoLo Receipt: </span>
           <span className="font-mono font-bold text-slate-900">{eir}</span>
@@ -264,7 +260,7 @@ export const EmptyContainerPrintView: React.FC<EmptyContainerPrintViewProps> = (
           </div>
           <p className="text-xs font-bold text-slate-950">MSK Nhava Sheva CFS & Empty Depot</p>
           <p className="text-slate-700 leading-relaxed text-[10px]">
-            Dronagiri Node, Sector 3, Nhava Sheva, Navi Mumbai, MH 400702
+            OFFICE NO-A-428, 4th FLOOR, BALAJI BHAWAN, PLOT NO-42A, SECTOR 11, CBD BELAPUR, NAVI MUMBAI 400 614.
           </p>
           <p className="text-slate-900 font-bold pt-1 text-[10px]">
             State: <span className="font-semibold">Maharashtra</span> | State Code: <span className="font-mono">27</span>
@@ -287,35 +283,29 @@ export const EmptyContainerPrintView: React.FC<EmptyContainerPrintViewProps> = (
       </div>
 
       {/* ========================================== */}
-      {/* 4. SHIPMENT & TRANSPORT REFERENCE GROUNDING */}
+      {/* 4. CFS & TRANSPORT REFERENCE GROUNDING */}
       {/* ========================================== */}
       <div className="border border-slate-900 p-2.5 space-y-1.5 bg-slate-50/50 text-[10px]">
         <div className="text-[10px] font-black text-slate-900 uppercase tracking-wider pb-0.5 border-b border-slate-200">
-          SHIPMENT & TRANSPORT REFERENCE GROUNDING
+          CFS & TRANSPORT REFERENCE GROUNDING
         </div>
         <div className="grid grid-cols-3 gap-2">
           <div>
-            <span className="text-slate-500 font-semibold">Vessel/Voyage: </span>
-            <span className="font-bold text-slate-900 font-mono">
-              {invoice.vesselVoyage || 'Pacific Pioneer / V-042E'}
+            <span className="text-slate-500 font-semibold">From CFS: </span>
+            <span className="font-bold text-slate-900">
+              {(invoice as any).fromCfs || invoice.portOfLoading || 'MSK Nhava Sheva CFS'}
             </span>
           </div>
           <div>
-            <span className="text-slate-500 font-semibold">Master B/L No: </span>
-            <span className="font-bold text-slate-900 font-mono">
-              {invoice.mblHbl || 'MEDU67201948'}
-            </span>
-          </div>
-          <div>
-            <span className="text-slate-500 font-semibold">Delivery Order: </span>
-            <span className="font-bold text-slate-900 font-mono">
-              {invoice.portOfLoading || 'DO-77821'}
+            <span className="text-slate-500 font-semibold">To CFS: </span>
+            <span className="font-bold text-slate-900">
+              {(invoice as any).toCfs || invoice.portOfDischarge || 'Speedway CFS / Port Terminal'}
             </span>
           </div>
           <div>
             <span className="text-slate-500 font-semibold">Transporter: </span>
             <span className="font-bold text-slate-900">
-              {invoice.portOfDischarge || 'Shri Mahalakshmi Logistics'}
+              {invoice.sbNumbers || 'Shri Mahalakshmi Logistics'}
             </span>
           </div>
           <div>
@@ -326,7 +316,7 @@ export const EmptyContainerPrintView: React.FC<EmptyContainerPrintViewProps> = (
           </div>
           <div>
             <span className="text-slate-500 font-semibold">Currency: </span>
-            <span className="font-bold text-slate-900 font-mono">INR (₹)</span>
+            <span className="font-bold text-slate-900 font-mono">{invoice.currency || 'INR (₹)'}</span>
           </div>
         </div>
       </div>

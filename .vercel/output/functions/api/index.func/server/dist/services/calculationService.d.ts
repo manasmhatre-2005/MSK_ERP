@@ -34,11 +34,19 @@ export interface TaxCalculationOptions {
 }
 export declare class CalculationService {
     /**
+     * Calculate difference in full calendar days between two dates, INCLUSIVE of both start and end date (+1 day).
+     * Validates date presence and order. Returns 0 if either date is missing or invalid, or if end < start.
+     */
+    static getInclusiveDaysDifference(start?: Date | string | null, end?: Date | string | null): number;
+    /**
      * Calculate difference in full calendar days between two dates
      */
     static getDaysDifference(start?: Date | string | null, end?: Date | string | null): number;
     /**
-     * Calculate Container Operational Days based on configured business rules
+     * Calculate Container Operational Days based on configured client business rules:
+     * 1. Empty Ground Rent Days = Stuffing Date - Empty Container In Date + 1 (inclusive)
+     * 2. Carting Days = Stuffing Date - Carting Date + 1 (inclusive)
+     * 3. Loaded Container Ground Rent Days = Loaded Container Out Date - Stuffing Date + 1 (inclusive)
      */
     static calculateContainerDays(cartingDate?: Date | string | null, emptyGateInDate?: Date | string | null, stuffingDate?: Date | string | null, lddOutDate?: Date | string | null, manualEmptyDays?: number | null, manualCartingDays?: number | null, manualLoadedDays?: number | null, isOverride?: boolean): Promise<ContainerDateCalculation>;
     /**

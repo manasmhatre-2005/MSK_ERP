@@ -59,8 +59,8 @@ export const DateCalculationBox: React.FC<DateCalculationBoxProps> = ({
         {/* Empty Ground Rent */}
         <div className="bg-white rounded-lg p-3 border border-slate-200 shadow-sm">
           <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
-            <span>Empty Ground Rent</span>
-            <span title={explanation?.emptyRentFormula || 'Empty Gate-In to Stuffing minus free days'}>
+            <span className="font-semibold text-slate-700">Empty Ground Rent</span>
+            <span title={explanation?.emptyRentFormula || 'Empty In to Stuffing (+1 day inclusive)'}>
               <HelpCircle className="w-3.5 h-3.5 text-slate-400" />
             </span>
           </div>
@@ -81,15 +81,15 @@ export const DateCalculationBox: React.FC<DateCalculationBoxProps> = ({
             </div>
           )}
           <p className="text-[11px] text-slate-400 mt-1 truncate">
-            {explanation?.emptyRentFormula || 'Gate-In to Stuffing (Less 3 Free Days)'}
+            {explanation?.emptyRentFormula || 'Empty In to Stuffing (+1 Inclusive)'}
           </p>
         </div>
 
-        {/* Days After Carting */}
+        {/* Carting Days */}
         <div className="bg-white rounded-lg p-3 border border-slate-200 shadow-sm">
           <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
-            <span>Days After Carting</span>
-            <span title={explanation?.cartingDaysFormula || 'Carting Date to Stuffing / LDD Out'}>
+            <span className="font-semibold text-slate-700">Carting Days</span>
+            <span title={explanation?.cartingDaysFormula || 'Carting Date to Stuffing (+1 day inclusive)'}>
               <HelpCircle className="w-3.5 h-3.5 text-slate-400" />
             </span>
           </div>
@@ -110,15 +110,15 @@ export const DateCalculationBox: React.FC<DateCalculationBoxProps> = ({
             </div>
           )}
           <p className="text-[11px] text-slate-400 mt-1 truncate">
-            {explanation?.cartingDaysFormula || 'Carting Date to LDD Out'}
+            {explanation?.cartingDaysFormula || 'Carting to Stuffing (+1 Inclusive)'}
           </p>
         </div>
 
         {/* Loaded Ground Days */}
         <div className="bg-white rounded-lg p-3 border border-slate-200 shadow-sm">
           <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
-            <span>Loaded Ground Days</span>
-            <span title={explanation?.loadedRentFormula || 'Stuffing to LDD Out minus free days'}>
+            <span className="font-semibold text-slate-700">Loaded Ground Days</span>
+            <span title={explanation?.loadedRentFormula || 'Stuffing to Loaded Out (+1 day inclusive)'}>
               <HelpCircle className="w-3.5 h-3.5 text-slate-400" />
             </span>
           </div>
@@ -139,7 +139,7 @@ export const DateCalculationBox: React.FC<DateCalculationBoxProps> = ({
             </div>
           )}
           <p className="text-[11px] text-slate-400 mt-1 truncate">
-            {explanation?.loadedRentFormula || 'Stuffing to LDD Out (Less 5 Free Days)'}
+            {explanation?.loadedRentFormula || 'Stuffing to Loaded Out (+1 Inclusive)'}
           </p>
         </div>
       </div>

@@ -105,9 +105,9 @@ export const CreditNotePrintView: React.FC<CreditNotePrintViewProps> = ({
   const compName = companySettings?.companyName || 'MSK LOGISTIC SOLUTION';
   const compAddress =
     companySettings?.address ||
-    'JNPT Township Colony, Sector - 3, Building No. B/48, Office No. 3';
+    'OFFICE NO-A-428, 4th FLOOR, BALAJI BHAWAN, PLOT NO-42A, SECTOR 11, CBD BELAPUR, NAVI MUMBAI 400 614.';
   const compCity = companySettings?.city || 'Navi Mumbai';
-  const compPincode = companySettings?.pincode || '400702';
+  const compPincode = companySettings?.pincode || '400 614';
   const compGstin = companySettings?.gstin || '27AXWPK4562G1ZX';
   const compPan = companySettings?.pan || 'AXWPK4562G';
   const compTan = companySettings?.tan || 'PNES72845D';
@@ -275,18 +275,18 @@ export const CreditNotePrintView: React.FC<CreditNotePrintViewProps> = ({
               </div>
             </div>
 
-            {/* 4. Side-by-Side: Recipient & Shipment Reference */}
-            <div className="border-x border-b border-slate-800 grid grid-cols-2 divide-x divide-slate-800">
-              {/* Left: Recipient (BILL TO) */}
-              <div className="flex flex-col">
-                <div className="bg-slate-100 px-3 py-1 border-b border-slate-300 font-bold text-[10px] text-slate-800 uppercase tracking-wide">
-                  BILL TO (RECIPIENT)
-                </div>
-                <div className="p-3 text-[10px] space-y-1">
-                  <p className="font-bold text-slate-900 text-[11px]">
-                    {party?.legalName || invoice.billToName || 'N/A'}
+            {/* 4. Full-Width Recipient (BILL TO) - No Shipment Reference Column */}
+            <div className="border-x border-b border-slate-800 bg-white">
+              <div className="bg-slate-100 px-3 py-1.5 border-b border-slate-300 font-bold text-[10px] text-slate-800 uppercase tracking-wide flex justify-between items-center">
+                <span>BILL TO (RECIPIENT CUSTOMER)</span>
+                <span className="text-[9px] text-slate-500 font-normal">Original Invoice Ref: {invoice.originalInvoiceNumber || 'N/A'}</span>
+              </div>
+              <div className="p-3 text-[10.5px] grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <p className="font-bold text-slate-900 text-xs">
+                    {party?.legalName || invoice.billToName || 'RECIPIENT PARTY'}
                   </p>
-                  <p className="text-slate-600 whitespace-pre-line leading-relaxed">
+                  <p className="text-slate-700 whitespace-pre-line leading-relaxed">
                     {party?.address || party?.registeredAddress || invoice.billToAddress || '-'}
                   </p>
                   {(party?.city || party?.pincode) && (
@@ -294,50 +294,19 @@ export const CreditNotePrintView: React.FC<CreditNotePrintViewProps> = ({
                       City: {party.city || '-'} | PIN: {party.pincode || '-'}
                     </p>
                   )}
-                  <p className="pt-1 text-slate-800 font-medium">
-                    GSTIN: <span className="font-mono font-bold">{party?.gstin || invoice.billToGstin || '-'}</span>
-                    {party?.pan && (
-                      <span className="ml-3">
-                        PAN: <span className="font-mono">{party.pan}</span>
-                      </span>
-                    )}
-                  </p>
-                  <p className="text-slate-600">
-                    State: {party?.state || '-'} ({party?.stateCode || '-'})
-                  </p>
                 </div>
-              </div>
-
-              {/* Right: Shipment Reference */}
-              <div className="flex flex-col">
-                <div className="bg-slate-100 px-3 py-1 border-b border-slate-300 font-bold text-[10px] text-slate-800 uppercase tracking-wide">
-                  SHIPMENT REFERENCE
-                </div>
-                <div className="p-3 text-[10px] space-y-1.5">
-                  <div className="grid grid-cols-3">
-                    <span className="text-slate-500 font-medium">Vessel / Voyage:</span>
-                    <span className="col-span-2 font-semibold text-slate-800">
-                      {invoice.vesselVoyage || '-'}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-3">
-                    <span className="text-slate-500 font-medium">MBL / HBL Ref:</span>
-                    <span className="col-span-2 font-semibold text-slate-800 font-mono">
-                      {invoice.mblHbl || invoice.sbNumbers || '-'}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-3">
-                    <span className="text-slate-500 font-medium">Port of Loading:</span>
-                    <span className="col-span-2 font-semibold text-slate-800">
-                      {invoice.portOfLoading || '-'}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-3">
-                    <span className="text-slate-500 font-medium">Port of Discharge:</span>
-                    <span className="col-span-2 font-semibold text-slate-800">
-                      {invoice.portOfDischarge || '-'}
-                    </span>
-                  </div>
+                <div className="space-y-1 md:text-right">
+                  <p className="text-slate-800 font-semibold">
+                    GSTIN: <span className="font-mono font-bold text-slate-950 text-xs">{party?.gstin || invoice.billToGstin || 'URP'}</span>
+                  </p>
+                  {party?.pan && (
+                    <p className="text-slate-700">
+                      PAN: <span className="font-mono font-bold">{party.pan}</span>
+                    </p>
+                  )}
+                  <p className="text-slate-700">
+                    State: <span className="font-semibold">{party?.state || invoice.billToState || 'Maharashtra'}</span> (Code: <span className="font-mono font-bold">{party?.stateCode || invoice.billToStateCode || '27'}</span>)
+                  </p>
                 </div>
               </div>
             </div>
@@ -404,8 +373,18 @@ export const CreditNotePrintView: React.FC<CreditNotePrintViewProps> = ({
 
             {/* 6. Summary & Signatory Section (Split Left & Right) */}
             <div className="border-x border-b border-slate-800 grid grid-cols-12 divide-x divide-slate-800">
-              {/* Left Column (Col 1-7): Amount in Words & Notes */}
+              {/* Left Column (Col 1-7): Reason for Credit, Amount in Words & Notes */}
               <div className="col-span-7 p-3 flex flex-col justify-between space-y-3">
+                {/* Prominently Highlighted REASON FOR CREDIT */}
+                <div className="p-2.5 rounded-lg border-2 border-amber-300 bg-amber-50/70 shadow-xs">
+                  <span className="text-[10px] uppercase font-black text-amber-900 tracking-wider block">
+                    REASON FOR CREDIT:
+                  </span>
+                  <p className="text-xs font-bold text-slate-950 mt-1 leading-snug">
+                    {invoice.reasonForCredit || invoice.notes || 'Commercial Service Rate & Tariff Adjustment approved by Management'}
+                  </p>
+                </div>
+
                 <div>
                   <span className="text-[9px] uppercase font-bold text-slate-500 tracking-wider block">
                     Total credit amount in words:

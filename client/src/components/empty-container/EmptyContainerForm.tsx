@@ -53,9 +53,11 @@ interface ChargeRow {
 }
 
 const PRESET_CHARGES = [
-  { description: 'Empty Container Lift-On (LoLo) Fees', hsnSacCode: '996719', defaultRate: 1500, linkToContainers: true },
-  { description: 'Empty Depot Ground Storage Charges', hsnSacCode: '996711', defaultRate: 450, isStorageCharge: true },
-  { description: 'Terminal Survey & Cleaning Charges', hsnSacCode: '996713', defaultRate: 850, linkToContainers: true },
+  { label: 'Transportation', description: 'Transportation Charges (From CFS to To CFS)', hsnSacCode: '996519', defaultRate: 4500, linkToContainers: true },
+  { label: 'Lift-On (LoLo)', description: 'Empty Container Lift-On (LoLo) Fees', hsnSacCode: '996719', defaultRate: 1500, linkToContainers: true },
+  { label: 'Storage', description: 'Empty Depot Ground Storage Charges', hsnSacCode: '996711', defaultRate: 450, isStorageCharge: true },
+  { label: 'Haulage', description: 'Empty Container Terminal Drayage & Haulage', hsnSacCode: '996511', defaultRate: 3800, linkToContainers: true },
+  { label: 'Survey / Cleaning', description: 'Terminal Survey & Cleaning Charges', hsnSacCode: '996713', defaultRate: 850, linkToContainers: true },
 ];
 
 export const EmptyContainerForm: React.FC<EmptyContainerFormProps> = ({
@@ -85,17 +87,15 @@ export const EmptyContainerForm: React.FC<EmptyContainerFormProps> = ({
 
   // Supplier / Depot Details
   const [depotName, setDepotName] = useState('MSK Nhava Sheva CFS & Empty Depot');
-  const [depotAddress, setDepotAddress] = useState('Dronagiri Node, Sector 3, Nhava Sheva, Navi Mumbai, MH 400702');
+  const [depotAddress, setDepotAddress] = useState('OFFICE NO-A-428, 4th FLOOR, BALAJI BHAWAN, PLOT NO-42A, SECTOR 11, CBD BELAPUR, NAVI MUMBAI 400 614.');
   const [depotState, setDepotState] = useState('Maharashtra');
   const [depotStateCode, setDepotStateCode] = useState('27');
 
-  // Shipment & Transport Grounding
-  const [vesselVoyage, setVesselVoyage] = useState('Pacific Pioneer / V-042E');
-  const [mblHbl, setMblHbl] = useState('MEDU67201948');
-  const [deliveryOrder, setDeliveryOrder] = useState('DO-77821');
+  // Manual CFS & Transport Reference
+  const [fromCfs, setFromCfs] = useState('MSK Nhava Sheva CFS');
+  const [toCfs, setToCfs] = useState('Speedway CFS / Port Terminal');
   const [transporterName, setTransporterName] = useState('Shri Mahalakshmi Logistics');
   const [vehicleNumber, setVehicleNumber] = useState('MH-46-AR-8812');
-  const [terminalGatePass, setTerminalGatePass] = useState('TGP-948102');
   const [eirReceipt, setEirReceipt] = useState('EIR-48190');
   const [selectedJobId, setSelectedJobId] = useState<string>('');
 
@@ -223,9 +223,6 @@ export const EmptyContainerForm: React.FC<EmptyContainerFormProps> = ({
     const j = jobs.find((job) => job.id === jId);
     if (!j) return;
 
-    if ((j as any).vesselVoyage) setVesselVoyage((j as any).vesselVoyage);
-    if ((j as any).mblHbl) setMblHbl((j as any).mblHbl);
-    if (j.shipmentRef) setDeliveryOrder(j.shipmentRef);
     if (j.partyId) {
       const p = parties.find((party) => party.id === j.partyId);
       if (p) applyParty(p);
@@ -415,13 +412,13 @@ export const EmptyContainerForm: React.FC<EmptyContainerFormProps> = ({
         billToGstin,
         billToState,
         billToStateCode,
-        vesselVoyage,
-        mblHbl,
-        portOfLoading: deliveryOrder, // Delivery Order
-        portOfDischarge: transporterName, // Transporter Name
+        fromCfs,
+        toCfs,
+        portOfLoading: fromCfs, // Fallback for historical schemas
+        portOfDischarge: toCfs,
         consigneeName: vehicleNumber, // Vehicle Number
-        sbNumbers: eirReceipt, // EIR / LoLo Receipt
-        notes: `Terminal Gate Pass: ${terminalGatePass} | EIR: ${eirReceipt} | Delivery Order: ${deliveryOrder}`,
+        sbNumbers: transporterName, // Transporter Name
+        notes: `From CFS: ${fromCfs} | To CFS: ${toCfs} | Transporter: ${transporterName} | EIR: ${eirReceipt}`,
         terms:
           '1. EIR verification and physical condition inspection must be acknowledged before gate-out.\n' +
           '2. Storage slab calculations accrue according to standard empty depot tariff rules.\n' +
@@ -524,18 +521,8 @@ export const EmptyContainerForm: React.FC<EmptyContainerFormProps> = ({
                 className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-slate-900 bg-white"
               />
             </div>
-            <div className="md:col-span-3 space-y-1">
-              <label className="font-semibold text-slate-700">Terminal Gate Pass (TGP)</label>
-              <input
-                type="text"
-                value={terminalGatePass}
-                onChange={(e) => setTerminalGatePass(e.target.value)}
-                placeholder="TGP-948102"
-                className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-slate-900 bg-white font-mono"
-              />
-            </div>
-            <div className="md:col-span-3 space-y-1">
-              <label className="font-semibold text-slate-700">EIR / LoLo Receipt</label>
+            <div className="md:col-span-6 space-y-1">
+              <label className="font-semibold text-slate-700">EIR / LoLo Receipt Reference</label>
               <input
                 type="text"
                 value={eirReceipt}
@@ -689,37 +676,30 @@ export const EmptyContainerForm: React.FC<EmptyContainerFormProps> = ({
             </div>
           </div>
 
-          {/* Section C: Shipment & Transport Reference Grounding */}
+          {/* Section C: CFS & Transport Reference Grounding */}
           <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/70 space-y-3">
             <span className="font-bold text-slate-900 uppercase tracking-tight text-[11px] block">
-              Shipment & Transport Reference Grounding
+              CFS & Transport Reference Grounding
             </span>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
               <div>
-                <label className="text-[10px] text-slate-500 font-semibold">Vessel / Voyage</label>
+                <label className="text-[10px] text-slate-500 font-semibold">From CFS *</label>
                 <input
                   type="text"
-                  value={vesselVoyage}
-                  onChange={(e) => setVesselVoyage(e.target.value)}
-                  className="w-full rounded border border-slate-300 px-2 py-1.5 text-xs text-slate-900 font-mono bg-white"
+                  value={fromCfs}
+                  onChange={(e) => setFromCfs(e.target.value)}
+                  placeholder="e.g. MSK Nhava Sheva CFS"
+                  className="w-full rounded border border-slate-300 px-2 py-1.5 text-xs text-slate-900 font-semibold bg-white"
                 />
               </div>
               <div>
-                <label className="text-[10px] text-slate-500 font-semibold">Master B/L No.</label>
+                <label className="text-[10px] text-slate-500 font-semibold">To CFS *</label>
                 <input
                   type="text"
-                  value={mblHbl}
-                  onChange={(e) => setMblHbl(e.target.value)}
-                  className="w-full rounded border border-slate-300 px-2 py-1.5 text-xs text-slate-900 font-mono bg-white"
-                />
-              </div>
-              <div>
-                <label className="text-[10px] text-slate-500 font-semibold">Delivery Order (DO)</label>
-                <input
-                  type="text"
-                  value={deliveryOrder}
-                  onChange={(e) => setDeliveryOrder(e.target.value)}
-                  className="w-full rounded border border-slate-300 px-2 py-1.5 text-xs text-slate-900 font-mono bg-white"
+                  value={toCfs}
+                  onChange={(e) => setToCfs(e.target.value)}
+                  placeholder="e.g. Speedway CFS / Port Terminal"
+                  className="w-full rounded border border-slate-300 px-2 py-1.5 text-xs text-slate-900 font-semibold bg-white"
                 />
               </div>
               <div>
@@ -728,6 +708,7 @@ export const EmptyContainerForm: React.FC<EmptyContainerFormProps> = ({
                   type="text"
                   value={transporterName}
                   onChange={(e) => setTransporterName(e.target.value)}
+                  placeholder="e.g. Shri Mahalakshmi Logistics"
                   className="w-full rounded border border-slate-300 px-2 py-1.5 text-xs text-slate-900 bg-white"
                 />
               </div>
@@ -737,7 +718,18 @@ export const EmptyContainerForm: React.FC<EmptyContainerFormProps> = ({
                   type="text"
                   value={vehicleNumber}
                   onChange={(e) => setVehicleNumber(e.target.value)}
+                  placeholder="e.g. MH-46-AR-8812"
                   className="w-full rounded border border-slate-300 px-2 py-1.5 text-xs text-slate-900 font-mono font-bold bg-white"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-slate-500 font-semibold">EIR / Pass No.</label>
+                <input
+                  type="text"
+                  value={eirReceipt}
+                  onChange={(e) => setEirReceipt(e.target.value)}
+                  placeholder="e.g. EIR-48190"
+                  className="w-full rounded border border-slate-300 px-2 py-1.5 text-xs text-slate-900 font-mono bg-white"
                 />
               </div>
               <div>
@@ -916,7 +908,7 @@ export const EmptyContainerForm: React.FC<EmptyContainerFormProps> = ({
                     onClick={() => addChargeRow(preset)}
                     className="px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-[10.5px] transition-colors"
                   >
-                    + {preset.description.split(' ')[0]}
+                    + {preset.label || preset.description.split(' ')[0]}
                   </button>
                 ))}
                 <button

@@ -99,7 +99,7 @@ export const HtBillPrintView: React.FC<HtBillPrintViewProps> = ({
 
   const settings = companySettings || {
     companyName: 'MSK LOGISTIC SOLUTION',
-    address: 'JNPT Township Colony, Sector - 3, Building No. B/48, Office No. 3, Navi Mumbai 400702',
+    address: 'OFFICE NO-A-428, 4th FLOOR, BALAJI BHAWAN, PLOT NO-42A, SECTOR 11, CBD BELAPUR, NAVI MUMBAI 400 614.',
     gstin: '27AXWPK4562G1ZX',
     pan: 'AXWPK4562G',
     email: 'accounts@msklogisticsolution.com',
@@ -121,10 +121,13 @@ export const HtBillPrintView: React.FC<HtBillPrintViewProps> = ({
   const calcDays = (d1: any, d2: any, stored?: number) => {
     if (stored !== undefined && stored !== null && Number(stored) > 0) return `${stored} Days`;
     if (!d1 || !d2) return '-';
-    const dt1 = new Date(d1).getTime();
-    const dt2 = new Date(d2).getTime();
-    if (isNaN(dt1) || isNaN(dt2) || dt2 < dt1) return '-';
-    const diff = Math.max(0, Math.round((dt2 - dt1) / (1000 * 3600 * 24)));
+    const dt1 = new Date(d1);
+    const dt2 = new Date(d2);
+    if (isNaN(dt1.getTime()) || isNaN(dt2.getTime())) return '-';
+    const utc1 = Date.UTC(dt1.getFullYear(), dt1.getMonth(), dt1.getDate());
+    const utc2 = Date.UTC(dt2.getFullYear(), dt2.getMonth(), dt2.getDate());
+    if (utc2 < utc1) return '-';
+    const diff = Math.floor((utc2 - utc1) / (1000 * 60 * 60 * 24)) + 1;
     return `${diff} Days`;
   };
 
@@ -223,7 +226,7 @@ export const HtBillPrintView: React.FC<HtBillPrintViewProps> = ({
               </h1>
             </div>
             <p className="text-[9.5px] text-slate-700 leading-snug">
-              {settings?.address || 'JNPT Township Colony, Sector - 3, Building No. B/48, Office No. 3, Navi Mumbai 400702'}
+              {settings?.address || 'OFFICE NO-A-428, 4th FLOOR, BALAJI BHAWAN, PLOT NO-42A, SECTOR 11, CBD BELAPUR, NAVI MUMBAI 400 614.'}
             </p>
             <p className="text-[9.5px] font-bold text-slate-900">
               GSTIN: <span className="font-mono">{settings?.gstin || '27AXWPK4562G1ZX'}</span> | PAN: <span className="font-mono">{settings?.pan || 'AXWPK4562G'}</span>
@@ -251,13 +254,13 @@ export const HtBillPrintView: React.FC<HtBillPrintViewProps> = ({
         </div>
 
         {/* ========================================== */}
-        {/* 2. BILL TO & SHIPMENT REFERENCE (TWO COLUMNS) */}
+        {/* 2. BILL TO & CONSIGNEE DETAILS (TWO COLUMNS) */}
         {/* ========================================== */}
         <div className="border border-slate-900 grid grid-cols-12 text-[10.5px]">
           {/* Bill To */}
           <div className="col-span-6 p-2.5 border-r border-slate-900 space-y-1 bg-white">
-            <div className="text-[10px] font-black text-slate-900 uppercase tracking-wider pb-0.5 border-b border-slate-100">
-              BILL TO (RECIPIENT):
+            <div className="text-[10px] font-black text-slate-900 uppercase tracking-wider pb-0.5 border-b border-slate-100 flex items-center justify-between">
+              <span>BILL TO (RECIPIENT CUSTOMER):</span>
             </div>
             <p className="text-xs font-bold text-slate-950">{invoice.billToName || 'RECIPIENT PARTY'}</p>
             <p className="text-slate-700 whitespace-pre-line leading-relaxed text-[10px]">
@@ -266,29 +269,61 @@ export const HtBillPrintView: React.FC<HtBillPrintViewProps> = ({
             <p className="text-slate-900 font-bold pt-1 text-[10px]">
               GSTIN: <span className="font-mono">{invoice.billToGstin || 'URP'}</span>
             </p>
+            <p className="text-slate-600 text-[10px]">
+              State: <span className="font-semibold text-slate-900">{invoice.billToState || 'Maharashtra'}</span> (Code: <span className="font-mono font-bold text-slate-900">{invoice.billToStateCode || '27'}</span>)
+            </p>
           </div>
 
-          {/* Shipment Reference */}
-          <div className="col-span-6 p-2.5 space-y-1.5 bg-slate-50/30">
+          {/* Consignee Details */}
+          <div className="col-span-6 p-2.5 space-y-1 bg-slate-50/40">
             <div className="text-[10px] font-black text-slate-900 uppercase tracking-wider pb-0.5 border-b border-slate-200">
-              SHIPMENT REFERENCE:
+              CONSIGNEE DETAILS (SHIPPED TO):
             </div>
-            <div className="grid grid-cols-3 gap-1">
-              <span className="text-slate-500 font-semibold">Vessel/Voyage:</span>
-              <span className="col-span-2 font-bold text-slate-900 font-mono">
+            <p className="text-xs font-bold text-slate-950">
+              {invoice.consigneeName || invoice.billToName || 'SAME AS BILL TO'}
+            </p>
+            <p className="text-slate-700 whitespace-pre-line leading-relaxed text-[10px]">
+              {invoice.consigneeAddress || invoice.billToAddress || 'Same Destination as Recipient Party'}
+            </p>
+            <p className="text-slate-500 text-[9.5px] italic pt-2">
+              Shipment Cargo Delivery / Port Consignment
+            </p>
+          </div>
+        </div>
+
+        {/* ========================================== */}
+        {/* 2B. SHIPMENT REFERENCE (FULL-WIDTH) */}
+        {/* ========================================== */}
+        <div className="border-x border-b border-slate-900 p-2 bg-slate-50/70 text-[10px]">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-slate-700">
+            <div>
+              <span className="text-slate-500 block text-[9px] uppercase font-semibold">Exporter Name:</span>
+              <span className="font-bold text-slate-900 text-[10.5px] block truncate" title={invoice.exporter?.name || invoice.exporterName || 'N/A'}>
+                {invoice.exporter?.name || invoice.exporterName || 'N/A'}
+              </span>
+            </div>
+            <div>
+              <span className="text-slate-500 block text-[9px] uppercase font-semibold">Shipping Bill No:</span>
+              <span className="font-bold text-slate-900 font-mono text-[10.5px] block">
+                {invoice.sbNumbers || 'N/A'}
+              </span>
+            </div>
+            <div>
+              <span className="text-slate-500 block text-[9px] uppercase font-semibold">Vessel / Voyage:</span>
+              <span className="font-bold text-slate-900 font-mono text-[10.5px] block">
                 {invoice.vesselVoyage || 'Pacific Pioneer / V-042E'}
               </span>
             </div>
-            <div className="grid grid-cols-3 gap-1">
-              <span className="text-slate-500 font-semibold">MBL / HBL No:</span>
-              <span className="col-span-2 font-bold text-slate-900 font-mono">
+            <div>
+              <span className="text-slate-500 block text-[9px] uppercase font-semibold">MBL / HBL No:</span>
+              <span className="font-bold text-slate-900 font-mono text-[10.5px] block">
                 {invoice.mblHbl || 'MEDU67201948 / AGLPNE0941'}
               </span>
             </div>
-            <div className="grid grid-cols-3 gap-1">
-              <span className="text-slate-500 font-semibold">Port of Loading/Discharge:</span>
-              <span className="col-span-2 font-bold text-slate-900">
-                {invoice.portOfLoading || 'Nhava Sheva (INNSA)'} / {invoice.portOfDischarge || 'Rotterdam (NLRTM)'}
+            <div>
+              <span className="text-slate-500 block text-[9px] uppercase font-semibold">Port Load / Discharge:</span>
+              <span className="font-bold text-slate-900 text-[10px] block truncate">
+                {invoice.portOfLoading || 'Nhava Sheva'} / {invoice.portOfDischarge || 'Rotterdam'}
               </span>
             </div>
           </div>
@@ -306,63 +341,68 @@ export const HtBillPrintView: React.FC<HtBillPrintViewProps> = ({
               <thead>
                 {/* Super-Header Row */}
                 <tr className="border-b border-slate-900 font-bold text-[9px] uppercase tracking-wider">
-                  <th className="bg-slate-800 text-white p-1 border-r border-slate-700 w-[24%]">
+                  <th className="bg-slate-800 text-white p-1 border-r border-slate-700 w-[25%]">
                     Container Details
                   </th>
                   <th colSpan={4} className="bg-slate-700 text-white p-1 border-r border-slate-600">
-                    OPERATIONAL MILESTONE TIMELINE DATES
+                    OPERATIONAL MILESTONE TIMELINE DATES (1 to 4)
                   </th>
                   <th colSpan={3} className="bg-slate-800 text-white p-1">
-                    DAYS CALCULATION BREAKDOWN
+                    INCLUSIVE DAYS BREAKDOWN (+1 DAY)
                   </th>
                 </tr>
                 {/* Column Headers */}
                 <tr className="bg-slate-900 text-white font-bold text-[8.5px] uppercase border-b border-slate-900">
                   <th className="p-1.5 border-r border-slate-700 text-left pl-2">CONTAINER NO. & SIZE/TYPE</th>
-                  <th className="p-1.5 border-r border-slate-700 w-[11%]">EMPTY PICK-UP</th>
-                  <th className="p-1.5 border-r border-slate-700 w-[11%]">STUFFING DATE</th>
-                  <th className="p-1.5 border-r border-slate-700 w-[11%]">CARTING DATE</th>
-                  <th className="p-1.5 border-r border-slate-700 w-[11%]">LOADED GATE-IN</th>
-                  <th className="p-1.5 border-r border-slate-700 w-[11%]">EMPTY DAYS<br/><span className="text-[7.5px] font-normal text-slate-300">(PICK-UP TO STUFF)</span></th>
-                  <th className="p-1.5 border-r border-slate-700 w-[11%]">CARGO DAYS<br/><span className="text-[7.5px] font-normal text-slate-300">(STUFF TO CART)</span></th>
-                  <th className="p-1.5 w-[11%]">LOADED DAYS<br/><span className="text-[7.5px] font-normal text-slate-300">(CART TO GATE-IN)</span></th>
+                  <th className="p-1.5 border-r border-slate-700 w-[11%]">1. EMPTY IN DATE</th>
+                  <th className="p-1.5 border-r border-slate-700 w-[11%]">2. CARTING DATE</th>
+                  <th className="p-1.5 border-r border-slate-700 w-[11%]">3. STUFFING DATE</th>
+                  <th className="p-1.5 border-r border-slate-700 w-[11%]">4. LOADED OUT DATE</th>
+                  <th className="p-1.5 border-r border-slate-700 w-[11%]">EMPTY GROUND<br/><span className="text-[7.5px] font-normal text-teal-300">(IN TO STUFF +1)</span></th>
+                  <th className="p-1.5 border-r border-slate-700 w-[11%]">CARTING DAYS<br/><span className="text-[7.5px] font-normal text-teal-300">(CART TO STUFF +1)</span></th>
+                  <th className="p-1.5 w-[11%]">LOADED GROUND<br/><span className="text-[7.5px] font-normal text-teal-300">(STUFF TO OUT +1)</span></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
                 {containers.map((c: any, idx: number) => {
                   const emptyD = calcDays(c.emptyGateInDate, c.stuffingDate, c.emptyGroundDays);
-                  const cargoD = calcDays(c.stuffingDate, c.cartingDate, c.daysAfterCarting);
-                  const loadedD = calcDays(c.cartingDate, c.lddOutDate, c.loadedGroundDays);
+                  const cartingD = calcDays(c.cartingDate, c.stuffingDate, c.daysAfterCarting);
+                  const loadedD = calcDays(c.stuffingDate, c.lddOutDate, c.loadedGroundDays);
 
                   return (
                     <tr key={idx} className={idx % 2 === 1 ? 'bg-slate-50/60' : 'bg-white'}>
                       <td className="p-1.5 border-r border-slate-200 text-left pl-2">
-                        <div className="font-bold text-slate-950 font-mono text-[10.5px]">
+                        <div className="font-bold text-slate-950 font-mono text-[11px]">
                           {c.containerNumber}
                         </div>
-                        <div className="text-[8.5px] text-slate-500 font-medium">
-                          {c.size || "40'"} {c.type || 'HC (Dry)'}
+                        <div className="inline-block mt-0.5 px-1.5 py-0.5 rounded bg-blue-100 text-blue-900 font-extrabold text-[9.5px] tracking-wide border border-blue-200">
+                          {c.size || "40 FT"} {c.type || 'HC'}
                         </div>
                       </td>
+                      {/* 1. Empty Container In Date */}
                       <td className="p-1.5 border-r border-slate-200 text-slate-800 font-medium">
                         {formatDate(c.emptyGateInDate)}
                       </td>
-                      <td className="p-1.5 border-r border-slate-200 text-slate-800 font-medium">
-                        {formatDate(c.stuffingDate)}
-                      </td>
+                      {/* 2. Carting Date */}
                       <td className="p-1.5 border-r border-slate-200 text-slate-800 font-medium">
                         {formatDate(c.cartingDate)}
                       </td>
+                      {/* 3. Stuffing Date */}
+                      <td className="p-1.5 border-r border-slate-200 text-slate-800 font-medium">
+                        {formatDate(c.stuffingDate)}
+                      </td>
+                      {/* 4. Loaded Container Out Date */}
                       <td className="p-1.5 border-r border-slate-200 text-slate-800 font-medium">
                         {formatDate(c.lddOutDate)}
                       </td>
-                      <td className="p-1.5 border-r border-slate-200 font-bold text-teal-700 bg-teal-50/30">
+                      {/* Calculated Inclusive Days */}
+                      <td className="p-1.5 border-r border-slate-200 font-bold text-teal-700 bg-teal-50/40 font-mono text-[10.5px]">
                         {emptyD}
                       </td>
-                      <td className="p-1.5 border-r border-slate-200 font-bold text-teal-700 bg-teal-50/30">
-                        {cargoD}
+                      <td className="p-1.5 border-r border-slate-200 font-bold text-teal-700 bg-teal-50/40 font-mono text-[10.5px]">
+                        {cartingD}
                       </td>
-                      <td className="p-1.5 font-bold text-teal-700 bg-teal-50/30">
+                      <td className="p-1.5 font-bold text-teal-700 bg-teal-50/40 font-mono text-[10.5px]">
                         {loadedD}
                       </td>
                     </tr>

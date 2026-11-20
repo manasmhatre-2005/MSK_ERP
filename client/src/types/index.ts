@@ -453,6 +453,10 @@ export interface Invoice {
   billToStateCode: string;
   consigneeName?: string;
   consigneeAddress?: string;
+  exporterName?: string;
+  shippingBillNo?: string;
+  fromCfs?: string;
+  toCfs?: string;
   sbNumbers?: string;
   subtotal: number;
   discountAmount: number;

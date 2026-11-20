@@ -201,7 +201,7 @@ export class InvoiceController {
     }
     static async create(req, res) {
         try {
-            const { invoiceNumber: customInvoiceNumber, billType = 'STANDARD', idempotencyKey: bodyIdempotencyKey, originalInvoiceId, originalInvoiceNumber, originalInvoiceDate, reasonForCredit, verificationToken, vesselVoyage, mblHbl, portOfLoading, portOfDischarge, invoiceDate, dueDate, partyId, exporterId, jobId, sbNumbers, consigneeName, consigneeAddress, currency = 'INR', items = [], containers = [], discountAmount = 0, notes, terms, status = 'DRAFT', templateId = 'format-1', customCgstRate, customSgstRate, customIgstRate, customTotalGstRate, forceInterState, } = req.body;
+            const { invoiceNumber: customInvoiceNumber, billType = 'STANDARD', idempotencyKey: bodyIdempotencyKey, originalInvoiceId, originalInvoiceNumber, originalInvoiceDate, reasonForCredit, verificationToken, vesselVoyage, mblHbl, portOfLoading, portOfDischarge, fromCfs, toCfs, invoiceDate, dueDate, partyId, exporterId, jobId, sbNumbers, consigneeName, consigneeAddress, currency = 'INR', items = [], containers = [], discountAmount = 0, notes, terms, status = 'DRAFT', templateId = 'format-1', customCgstRate, customSgstRate, customIgstRate, customTotalGstRate, forceInterState, } = req.body;
             // 1. Concurrency & Retry Idempotency: Prevent duplicate submissions
             const rawKey = req.headers['idempotency-key'] || bodyIdempotencyKey;
             const idempotencyKey = typeof rawKey === 'string' && rawKey.trim().length > 0 ? rawKey.trim() : null;
@@ -331,6 +331,8 @@ export class InvoiceController {
                         mblHbl: mblHbl || null,
                         portOfLoading: portOfLoading || null,
                         portOfDischarge: portOfDischarge || null,
+                        fromCfs: fromCfs || null,
+                        toCfs: toCfs || null,
                         invoiceDate: invDate,
                         dueDate: dueDate ? new Date(dueDate) : null,
                         partyId,
@@ -432,7 +434,7 @@ export class InvoiceController {
             if (existing.status === 'FINALIZED' && req.user?.role !== 'ADMIN') {
                 return res.status(403).json({ error: 'Finalized invoices cannot be modified without Admin authorization.' });
             }
-            const { invoiceDate, dueDate, exporterId, jobId, sbNumbers, consigneeName, consigneeAddress, currency, items, containers, discountAmount, notes, terms, status, templateId, customCgstRate, customSgstRate, customIgstRate, customTotalGstRate, forceInterState, } = req.body;
+            const { invoiceDate, dueDate, exporterId, jobId, sbNumbers, consigneeName, consigneeAddress, fromCfs, toCfs, vesselVoyage, mblHbl, portOfLoading, portOfDischarge, reasonForCredit, currency, items, containers, discountAmount, notes, terms, status, templateId, customCgstRate, customSgstRate, customIgstRate, customTotalGstRate, forceInterState, } = req.body;
             const partyStateCode = existing.billToStateCode;
             const activeCurrency = currency !== undefined ? currency : (existing.currency || 'INR');
             let activeNotes = notes !== undefined ? notes : existing.notes;
@@ -455,6 +457,13 @@ export class InvoiceController {
                 sbNumbers: sbNumbers !== undefined ? sbNumbers : existing.sbNumbers,
                 consigneeName: consigneeName !== undefined ? consigneeName : existing.consigneeName,
                 consigneeAddress: consigneeAddress !== undefined ? consigneeAddress : existing.consigneeAddress,
+                fromCfs: fromCfs !== undefined ? fromCfs : existing.fromCfs,
+                toCfs: toCfs !== undefined ? toCfs : existing.toCfs,
+                vesselVoyage: vesselVoyage !== undefined ? vesselVoyage : existing.vesselVoyage,
+                mblHbl: mblHbl !== undefined ? mblHbl : existing.mblHbl,
+                portOfLoading: portOfLoading !== undefined ? portOfLoading : existing.portOfLoading,
+                portOfDischarge: portOfDischarge !== undefined ? portOfDischarge : existing.portOfDischarge,
+                reasonForCredit: reasonForCredit !== undefined ? reasonForCredit : existing.reasonForCredit,
                 notes: activeNotes,
                 terms: terms !== undefined ? terms : existing.terms,
                 status: status !== undefined ? status : existing.status,
@@ -892,9 +901,9 @@ export class InvoiceController {
                     gstin: settings?.gstin || '27AXWPK4562G1ZX',
                     pan: settings?.pan || 'AXWPK4562G',
                     tan: settings?.tan || 'PNES72845D',
-                    address: settings?.address || 'JNPT Township Colony, Sector - 3, Building No. B/48, Office No. 3, Navi Mumbai - 400702',
+                    address: settings?.address || 'OFFICE NO-A-428, 4th FLOOR, BALAJI BHAWAN, PLOT NO-42A, SECTOR 11, CBD BELAPUR, NAVI MUMBAI 400 614.',
                     city: settings?.city || 'Navi Mumbai',
-                    pincode: settings?.pincode || '400702',
+                    pincode: settings?.pincode || '400 614',
                     phone: settings?.phone || '+91 8104592823',
                     email: settings?.email || 'accounts@msklogisticsolution.com',
                     website: settings?.website || 'www.msklogisticsolution.com',

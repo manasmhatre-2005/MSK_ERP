@@ -39,24 +39,35 @@ export interface TaxCalculationOptions {
 
 export class CalculationService {
   /**
-   * Calculate difference in full calendar days between two dates
+   * Calculate difference in full calendar days between two dates, INCLUSIVE of both start and end date (+1 day).
+   * Validates date presence and order. Returns 0 if either date is missing or invalid, or if end < start.
    */
-  static getDaysDifference(start?: Date | string | null, end?: Date | string | null): number {
+  static getInclusiveDaysDifference(start?: Date | string | null, end?: Date | string | null): number {
     if (!start || !end) return 0;
     const d1 = new Date(start);
     const d2 = new Date(end);
     if (isNaN(d1.getTime()) || isNaN(d2.getTime())) return 0;
     
-    // Normalize to midnight UTC for pure day count
+    // Normalize to midnight UTC for pure day count without DST/timezone skew
     const utc1 = Date.UTC(d1.getFullYear(), d1.getMonth(), d1.getDate());
     const utc2 = Date.UTC(d2.getFullYear(), d2.getMonth(), d2.getDate());
     
-    const diff = Math.floor((utc2 - utc1) / (1000 * 60 * 60 * 24));
-    return diff > 0 ? diff : 0;
+    if (utc2 < utc1) return 0;
+    return Math.floor((utc2 - utc1) / (1000 * 60 * 60 * 24)) + 1;
   }
 
   /**
-   * Calculate Container Operational Days based on configured business rules
+   * Calculate difference in full calendar days between two dates
+   */
+  static getDaysDifference(start?: Date | string | null, end?: Date | string | null): number {
+    return this.getInclusiveDaysDifference(start, end);
+  }
+
+  /**
+   * Calculate Container Operational Days based on configured client business rules:
+   * 1. Empty Ground Rent Days = Stuffing Date - Empty Container In Date + 1 (inclusive)
+   * 2. Carting Days = Stuffing Date - Carting Date + 1 (inclusive)
+   * 3. Loaded Container Ground Rent Days = Loaded Container Out Date - Stuffing Date + 1 (inclusive)
    */
   static async calculateContainerDays(
     cartingDate?: Date | string | null,
@@ -68,43 +79,29 @@ export class CalculationService {
     manualLoadedDays?: number | null,
     isOverride?: boolean
   ): Promise<ContainerDateCalculation> {
-    let freeEmptyDays = 3;
-    let freeLoadedDays = 5;
-    if (process.env.DATABASE_URL) {
-      try {
-        const settings = await prisma.companySettings.findUnique({ where: { id: 'default' } });
-        if (settings) {
-          freeEmptyDays = settings.freeEmptyGroundDays ?? 3;
-          freeLoadedDays = settings.freeLoadedGroundDays ?? 5;
-        }
-      } catch (err) {
-        // fallback to standard defaults
-      }
-    }
+    // 1. Empty Ground Rent Days: From Empty Container In Date to Stuffing Date (+1 inclusive)
+    const computedEmptyDays = (emptyGateInDate && stuffingDate)
+      ? this.getInclusiveDaysDifference(emptyGateInDate, stuffingDate)
+      : 0;
 
-    // 1. Empty Ground Rent Days:
-    // Days between Empty Gate In and Stuffing Date (minus free days)
-    const rawEmptyDays = this.getDaysDifference(emptyGateInDate, stuffingDate);
-    const computedEmptyDays = Math.max(0, rawEmptyDays - freeEmptyDays);
+    // 2. Carting Days: From Carting Date to Stuffing Date (+1 inclusive)
+    const computedCartingDays = (cartingDate && stuffingDate)
+      ? this.getInclusiveDaysDifference(cartingDate, stuffingDate)
+      : 0;
 
-    // 2. Days After Carting:
-    // Days between Carting Date and LDD Container Out Date (or Stuffing Date if not out yet)
-    const endDateForCarting = lddOutDate || stuffingDate;
-    const computedCartingDays = this.getDaysDifference(cartingDate, endDateForCarting);
-
-    // 3. Loaded Ground Days:
-    // Days between Stuffing Date and LDD Out Date (minus free days)
-    const rawLoadedDays = this.getDaysDifference(stuffingDate, lddOutDate);
-    const computedLoadedDays = Math.max(0, rawLoadedDays - freeLoadedDays);
+    // 3. Loaded Container Ground Rent Days: From Stuffing Date to Loaded Container Out Date (+1 inclusive)
+    const computedLoadedDays = (stuffingDate && lddOutDate)
+      ? this.getInclusiveDaysDifference(stuffingDate, lddOutDate)
+      : 0;
 
     return {
       emptyGroundRentDays: isOverride && manualEmptyDays !== undefined && manualEmptyDays !== null ? manualEmptyDays : computedEmptyDays,
       daysAfterCarting: isOverride && manualCartingDays !== undefined && manualCartingDays !== null ? manualCartingDays : computedCartingDays,
       loadedGroundDays: isOverride && manualLoadedDays !== undefined && manualLoadedDays !== null ? manualLoadedDays : computedLoadedDays,
       explanation: {
-        emptyRentFormula: `Empty Gate In to Stuffing (${rawEmptyDays} days) - ${freeEmptyDays} Free Days = ${computedEmptyDays} chargeable days`,
-        cartingDaysFormula: `Carting Date to ${lddOutDate ? 'LDD Out' : 'Stuffing'} = ${computedCartingDays} total operational days`,
-        loadedRentFormula: `Stuffing to LDD Out (${rawLoadedDays} days) - ${freeLoadedDays} Free Days = ${computedLoadedDays} chargeable days`,
+        emptyRentFormula: `Empty In to Stuffing (inclusive +1 day) = ${computedEmptyDays} days`,
+        cartingDaysFormula: `Carting to Stuffing (inclusive +1 day) = ${computedCartingDays} days`,
+        loadedRentFormula: `Stuffing to Loaded Out (inclusive +1 day) = ${computedLoadedDays} days`,
       },
     };
   }
